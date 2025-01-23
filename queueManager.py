@@ -3,24 +3,28 @@ import json
 ready_queue = []
 not_ready_queue = []
 
+# Returns out the current queue as a String, unless the queue is empty then it return the empty message
 def get_queue():
     if not ready_queue and not not_ready_queue:
         return ("Queue is empty")
     else:
         return update_queue_message()
 
+# Adds a user to the list that represents the ready queue
 def add_to_queue(nickname):
     if nickname in ready_queue or nickname in not_ready_queue:
         return (f"{nickname} already in the queue")
     else:
         ready_queue.append(nickname)
         return (f"{nickname} added in the queue")
-    
+
+# Clears both lists from all values (Users)
 def clear_user_queue():
     ready_queue.clear()
     not_ready_queue.clear()
     return "Queue Cleared"
 
+# Removes a specific value (User) from where it is located in either queue
 def remove_from_queue(nickname):
     if nickname not in ready_queue and nickname not in not_ready_queue:
         return (f"{nickname} not in the queue")
@@ -31,6 +35,7 @@ def remove_from_queue(nickname):
             not_ready_queue.remove(nickname)
         return (f"{nickname} removed in the queue")
 
+# Moves a user from one list to the other 
 def react_queue(nickname):
     if nickname in ready_queue:
         not_ready_queue.append(nickname)
@@ -39,7 +44,7 @@ def react_queue(nickname):
         ready_queue.append(nickname)
         not_ready_queue.remove(nickname)
 
-
+# Returns a queue message based on the positions of Users in the lists
 def update_queue_message():
     # Construct the queue message content
     queue_message_content = "**Queue: \n**"
@@ -57,6 +62,7 @@ def update_queue_message():
     queue_message_content += '\n*Please react before and after taking a user*'
     return queue_message_content
 
+# Saves the current queue to a JSON File
 def save_queues():
     data = {
         "ready_queue": ready_queue,
@@ -65,6 +71,7 @@ def save_queues():
     with open("queues.json", "w") as file:
         json.dump(data, file)
 
+# Loads the queue from a JSON File
 def load_queues():
     global ready_queue, not_ready_queue
     try:
