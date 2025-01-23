@@ -40,7 +40,7 @@ async def remove_user(ctx, member: discord.Member):
     await ctx.send(remove_from_queue(member.display_name))
 
 # "Reacts" on the behalf of a specific user. 
-# Ex. !react @@ExampleUser will move them to the other queue, just as reacting to the message would
+# Ex. !react @@ExampleUser will move them to the other queue, just as reacting to the message would, and will reprint the queue
 @bot.command(name = "react")
 async def remove_user(ctx, member: discord.Member):
     global last_bot_message
