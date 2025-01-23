@@ -16,6 +16,9 @@ def daily_commands(bot):
     scheduler = AsyncIOScheduler(event_loop=bot.loop, timezone='America/New_York')
 
     # Daily commands 
-    scheduler.add_job(purge_channel, 'cron', hour=1, minute=1, misfire_grace_time=60, args=[bot])
-    
+    # Purge set for 12:01 am
+    purge_time = [0,1]
+    print(f"Purge queues for {purge_time[0]}:{purge_time[1]}")
+    scheduler.add_job(purge_channel, 'cron', hour=purge_time[0], minute=purge_time[1], misfire_grace_time=60, args=[bot])
+
     scheduler.start()
