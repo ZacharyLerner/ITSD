@@ -61,7 +61,7 @@ async def on_command_error(ctx, error):
 
 # After every command is run the queue will be saved to a JSON File
 @bot.event
-async def on_command_completion():
+async def on_command_completion(ctx):
     save_queues()
 
 # Moves the User to the respective queue when they react with any emoji to the Queue Message and edits the queue message to reflect the change

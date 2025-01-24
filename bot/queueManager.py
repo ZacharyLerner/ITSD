@@ -68,14 +68,14 @@ def save_queues():
         "ready_queue": ready_queue,
         "not_ready_queue": not_ready_queue
     }
-    with open("queues.json", "w") as file:
+    with open("bot/queues.json", "w") as file:
         json.dump(data, file)
 
 # Loads the queue from a JSON File
 def load_queues():
     global ready_queue, not_ready_queue
     try:
-        with open("queues.json", "r") as file:
+        with open("bot/queues.json", "r") as file:
             data = json.load(file)
             ready_queue = data.get("ready_queue", [])
             not_ready_queue = data.get("not_ready_queue", [])
