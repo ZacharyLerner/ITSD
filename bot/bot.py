@@ -61,7 +61,7 @@ async def on_command_error(ctx, error):
 
 # After every command is run the queue will be saved to a JSON File
 @bot.event
-async def on_command_completion(ctx):
+async def on_command_completion():
     save_queues()
 
 # Moves the User to the respective queue when they react with any emoji to the Queue Message and edits the queue message to reflect the change
@@ -78,7 +78,7 @@ async def on_reaction_add(reaction, user):
 # When the bot comes online all daily commands a run and the queue is loaded from the JSON File 
 @bot.event
 async def on_ready():
-    daily_commands(bot)
+    await daily_commands(bot)
     load_queues()
     print("Bot Online")
 

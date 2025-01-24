@@ -1,5 +1,8 @@
-api_key.py
+bot/api_key.py
 /myenv
 __pycache__
-queues.json
-oldBot.py
+bot/queues.json
+bot/oldBot.py
+bot/queueManager.
+
+documents
