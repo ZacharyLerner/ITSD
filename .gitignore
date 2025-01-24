@@ -1,4 +1,4 @@
-bot/api_key.py
+api_key.py
 /myenv
 __pycache__
 bot/queues.json
