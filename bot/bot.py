@@ -4,7 +4,7 @@ from discord.ext import commands
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
-from scheduler import daily_commands
+from scheduler import daily_commands, purge_channel
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -53,6 +53,10 @@ async def remove_user(ctx, member: discord.Member):
 async def clear_queue(ctx):
     await ctx.send(clear_user_queue())
 
+@bot.command(name = "purge")
+async def purge(ctx):
+    await purge_channel(bot)
+
 # In the event that an invalid command is run it will print out possible correct commands
 @bot.event
 async def on_command_error(ctx, error):
@@ -74,6 +78,7 @@ async def on_reaction_add(reaction, user):
         await last_bot_message.edit(content = get_queue())
         await last_bot_message.remove_reaction(reaction.emoji, user)
     save_queues()
+
 
 # When the bot comes online all daily commands a run and the queue is loaded from the JSON File 
 @bot.event
