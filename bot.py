@@ -4,7 +4,7 @@ from discord.ext import commands
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
-from scheduler import daily_commands, purge_channel
+from scheduler import daily_commands, purge_channel, get_incidents
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -56,6 +56,10 @@ async def clear_queue(ctx):
 @bot.command(name = "purge")
 async def purge(ctx):
     await purge_channel(bot)
+
+@bot.command(name = "incidents")
+async def incidents(ctx):
+    await get_incidents(bot)
 
 # In the event that an invalid command is run it will print out possible correct commands
 @bot.event
