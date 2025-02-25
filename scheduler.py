@@ -5,6 +5,8 @@ import discord
 from discord.ext import tasks
 import requests
 
+from api_key import USERNAME, PASSWORD, INSTANCE
+
 # Deletes all messages in a specific chat
 async def purge_channel(bot):
     guild = bot.guilds[0]  # Adjust this if your bot is in multiple servers

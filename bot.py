@@ -1,10 +1,13 @@
 import discord
 from api_key import TOKEN
 from discord.ext import commands
+from api_key import OPEN_API_API
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
 from scheduler import daily_commands, purge_channel, get_incidents
+from info.search import create_indexes, search_in_indexes
+from info.ai_reader import ask_openai
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -14,6 +17,7 @@ intents.message_content = True
 
 # Global Variable that stores the message ID for the last bot Queue Message
 last_bot_message = ""
+indexes = []
 
 # All Commands must have !
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -61,6 +65,48 @@ async def purge(ctx):
 async def incidents(ctx):
     await get_incidents(bot)
 
+@bot.command(name = "search")
+async def ask_question(ctx, *, question):
+    global indexes
+    async with ctx.typing():
+        results = search_in_indexes(indexes, question)
+        response = ask_openai(question, results, OPEN_API_API)
+    await ctx.reply(response)
+
+    #write the question and the response to a file
+    with open("info/asked_questions.txt", "a") as file:
+        file.write(f"User: {ctx.message.author.display_name} || Time: {ctx.message.created_at}\n")
+        file.write(f"Question: {ctx.message.content}\n")
+        file.write(f"Response: {response}\n\n")
+
+# Make it so that if anyone direct messages the bot it will respond with a message
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+    # query the search engine
+    if message.channel.type == discord.ChannelType.private:
+        # type while searching
+        async with message.channel.typing():
+            results = search_in_indexes(indexes, message.content)
+            response = ask_openai(message.content, results, OPEN_API_API)
+        await message.channel.send(response)
+    else:
+        await bot.process_commands(message)
+
+    #write the question and the response to a file
+    with open("info/asked_questions.txt", "a") as file:
+        file.write(f"User: {message.author.display_name} || Time: {message.created_at}\n")
+        file.write(f"Question: {message.content}\n")
+        file.write(f"Response: {response}\n\n")
+
+    #dm ScuffedLad the question and response
+    user = await bot.fetch_user(511332467077283850)
+    await user.send(f"User: {message.author.display_name} || Time: {message.created_at}\n")
+    await user.send(f"Question: {message.content}\n")
+    await user.send(f"Response: {response}\n\n")
+
+
 # In the event that an invalid command is run it will print out possible correct commands
 @bot.event
 async def on_command_error(ctx, error):
@@ -90,5 +136,7 @@ async def on_ready():
     await daily_commands(bot)
     load_queues()
     print("Bot Online")
+    global indexes 
+    indexes= create_indexes("info/formattedFiles")
 
 bot.run(TOKEN)
