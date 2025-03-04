@@ -68,7 +68,7 @@ def search_in_indexes(indexes, query, top_n=10):
     combined_results.sort(key=lambda x: x[1], reverse=True)
 
     # Take the top 20 overall
-    top_overall = combined_results[:20]
+    top_overall = combined_results[:20] 
 
     # Return only the text from the top results
     only_text = [item[0] for item in top_overall]

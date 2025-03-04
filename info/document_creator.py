@@ -1,15 +1,22 @@
 from bs4 import BeautifulSoup
 import re
-import os
 import requests
 from requests.auth import HTTPBasicAuth
-from login import USERNAME, PASSWORD, INSTANCE
+from login import SN_USERNAME, SN_PASSWORD, SN_INSTANCE
 import json
 from docx import Document
 
-instance = INSTANCE
-username = USERNAME
-password = PASSWORD
+import os
+from os import load_dotenv
+load_dotenv()
+
+username = os.getenv("SN_USERNAME")
+password = os.getenv("SN_PASSWORD")
+instance = os.getenv("SN_INSTANCE")
+
+
+
+
 
 def extract_html_text(file_path):
     html_text = []

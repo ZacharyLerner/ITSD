@@ -1,7 +1,13 @@
 import discord
-from api_key import TOKEN
 from discord.ext import commands
-from api_key import OPEN_API_API
+import os 
+from dotenv import load_dotenv
+
+# Load the .env file to get the Discord Token and OpenAI API Key
+load_dotenv()
+OPEN_API_API = os.getenv("OPEN_API_API")
+TOKEN = os.getenv("DISCORD_TOKEN")
+
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
@@ -91,20 +97,17 @@ async def on_message(message):
             results = search_in_indexes(indexes, message.content)
             response = ask_openai(message.content, results, OPEN_API_API)
         await message.channel.send(response)
+
+        #dm ScuffedLad the question and response
+        user = await bot.fetch_user(511332467077283850)
+        info_message = (f"User: {message.author.display_name} || Time: {message.created_at}\n"
+                        f"Question: {message.content}\n"
+                        f"Response: {response}\n"
+                        f"-----------------------------------\n")
+        
+        await user.send(info_message)
     else:
         await bot.process_commands(message)
-
-    #write the question and the response to a file
-    with open("info/asked_questions.txt", "a") as file:
-        file.write(f"User: {message.author.display_name} || Time: {message.created_at}\n")
-        file.write(f"Question: {message.content}\n")
-        file.write(f"Response: {response}\n\n")
-
-    #dm ScuffedLad the question and response
-    user = await bot.fetch_user(511332467077283850)
-    await user.send(f"User: {message.author.display_name} || Time: {message.created_at}\n")
-    await user.send(f"Question: {message.content}\n")
-    await user.send(f"Response: {response}\n\n")
 
 
 # In the event that an invalid command is run it will print out possible correct commands

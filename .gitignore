@@ -12,3 +12,7 @@ info/formattedFiles
 info/open_ai_key.py
 info/servicenow.py
 indexdir
+
+.env 
+
+info/asked_questions.txt

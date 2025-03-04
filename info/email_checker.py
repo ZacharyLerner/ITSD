@@ -1,7 +1,13 @@
 import asyncio
 from quart import Quart, jsonify
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
-from login import USERNAME, PASSWORD, URL
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
+username = os.getenv("USERNAME")
+password = os.getenv("PASSWORD")
+URL = os.getenv("URL")
 
 app = Quart(__name__)
 
@@ -79,8 +85,6 @@ async def launch_and_login():
     )
 
     # Login with your credentials
-    username = USERNAME
-    password = PASSWORD
     await login_sso(page, username, password)
 
     print("Logged in successfully.")

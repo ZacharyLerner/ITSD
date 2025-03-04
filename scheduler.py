@@ -5,7 +5,11 @@ import discord
 from discord.ext import tasks
 import requests
 
-from api_key import USERNAME, PASSWORD, INSTANCE
+import os 
+from dotenv import load_dotenv
+load_dotenv()
+
+# from the .env load the 
 
 # Deletes all messages in a specific chat
 async def purge_channel(bot):
@@ -31,7 +35,7 @@ async def schedule_printer_check(bot, scheduler):
     for day in days_of_week:
         scheduler.add_job(printer_check, 'cron', day_of_week=day, hour=8, minute=0, misfire_grace_time=60, args=[bot, "1"])
         scheduler.add_job(printer_check, 'cron', day_of_week=day, hour=12, minute=0, misfire_grace_time=60, args=[bot, "2"])
-        scheduler.add_job(printer_check, 'cron', day_of_week=day, hour=4, minute=30, misfire_grace_time=60, args=[bot, "2"])
+        scheduler.add_job(printer_check, 'cron', day_of_week=day, hour=16, minute=30, misfire_grace_time=60, args=[bot, "2"])
 
 # Schedule incidents to be checked at specific times
 async def schedule_get_incidents(bot, scheduler):
@@ -88,17 +92,11 @@ async def get_incidents(bot):
 async def schedule_daily_purge(bot, scheduler):
     # Purge set for 12:01 am
     print("Purge Scheduled")
-    scheduler.add_job(purge_channel, 'cron', hour=10, minute=8, misfire_grace_time=60, args=[bot])
+    scheduler.add_job(purge_channel, 'cron', hour=0, minute=1, misfire_grace_time=60, args=[bot])
 
 
 # Gives a list of commands to be run daily
 async def daily_commands(bot):
-    health_resp = requests.get("http://127.0.0.1:5000/health")
-    if health_resp.status_code == 200:
-        print("Health check:", health_resp.json())
-    else:
-        print("Health check failed:", health_resp.text)
-
     scheduler = AsyncIOScheduler(event_loop=bot.loop, timezone='America/New_York')
     await schedule_daily_purge(bot, scheduler)
     await schedule_printer_check(bot, scheduler)
