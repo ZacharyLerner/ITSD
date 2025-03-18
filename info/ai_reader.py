@@ -1,5 +1,8 @@
 import openai
 
+# Function to ask OpenAI a question
+# This function takes in a question, relevant snippets, and an API key
+# The system prompt is set up to provide context for the AI and help it generate a relevant response
 def ask_openai(question, relevant_snippets, api_key):
     openai.api_key = api_key
     system_prompt = f"""You are an IT Search Engine Assistant. You are a part of the URI IT Service Desk (ITSD). Respond in a conversational manner. 

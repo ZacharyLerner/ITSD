@@ -2,12 +2,13 @@ import discord
 from discord.ext import commands
 import os 
 from dotenv import load_dotenv
+import json
 
 # Load the .env file to get the Discord Token and OpenAI API Key
 load_dotenv()
-OPEN_API_API = os.getenv("OPEN_API_API")
+OPEN_API_API = os.getenv("OPEN_AI_API")
 TOKEN = os.getenv("DISCORD_TOKEN")
-
+DM_User = int(os.getenv("DM_USER"))
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
@@ -24,6 +25,7 @@ intents.message_content = True
 # Global Variable that stores the message ID for the last bot Queue Message
 last_bot_message = ""
 indexes = []
+proposed_additions = []
 
 # All Commands must have !
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -63,14 +65,20 @@ async def remove_user(ctx, member: discord.Member):
 async def clear_queue(ctx):
     await ctx.send(clear_user_queue())
 
+# Purges the Jabber-Shift-Chat channel of all messages
+# Ex. !purge will clear the Jabber-Shift-Chat channel of all messages
 @bot.command(name = "purge")
 async def purge(ctx):
     await purge_channel(bot)
 
+# Gets the incidents from the ServiceNow API and prints them out
+# Ex. !incidents will print out the incidents from the ServiceNow API
 @bot.command(name = "incidents")
 async def incidents(ctx):
     await get_incidents(bot)
 
+# Searches the internal recourses for the question and returns the response
+# Ex. !search "How do I reset my password?" will return the response from the search engine
 @bot.command(name = "search")
 async def ask_question(ctx, *, question):
     global indexes
@@ -79,12 +87,71 @@ async def ask_question(ctx, *, question):
         response = ask_openai(question, results, OPEN_API_API)
     await ctx.reply(response)
 
-    #write the question and the response to a file
-    with open("info/asked_questions.txt", "a") as file:
-        file.write(f"User: {ctx.message.author.display_name} || Time: {ctx.message.created_at}\n")
-        file.write(f"Question: {ctx.message.content}\n")
-        file.write(f"Response: {response}\n\n")
+    # dm ScuffedLad the question and response
+    user = await bot.fetch_user(DM_User)
+    info_message = (f"User: {ctx.author.display_name} || Time: {ctx.message.created_at}\n"
+                    f"Question: {question}\n"
+                    f"Response: {response}\n"
+                    f"-----------------------------------\n")
+    
+@bot.command(name = "search_add")
+async def add_to_search(ctx, *, addition):
+    global proposed_additions
+    proposed_additions.append(addition)
+    await ctx.reply(f"Added '{addition}' to proposed additions")
 
+@bot.command(name = "search_approve")
+async def approve_addition(ctx, *, number):
+    await ctx.reply(f"{number}")
+    # check if the person approving is the correct person
+    if ctx.author.id != DM_User:
+        await ctx.reply("You are not authorized to approve additions")
+        return
+    elif number >= len(proposed_additions) + 1:
+        await ctx.reply("Invalid number")
+        return
+    else:
+        global indexes
+        with open("info/formattedFiles/additions.json", "r", encoding='utf-8') as file:
+            additions = json.load(file)
+
+        addition = proposed_additions[number]
+
+        additions.append(addition)
+
+        with open("info/formattedFiles/additions.json", "w", encoding='utf-8') as file:
+            json.dump(additions, file, indent=4)
+
+        # recreate the indexes
+        indexes = create_indexes("info/formattedFiles")
+
+        await ctx.reply(f"Added '{addition}' to the search engine")
+
+@bot.command(name = "search_deny")
+async def reject_addition(ctx, *, number):
+    # check if the person approving is the correct person
+    if ctx.author.id != DM_User:
+        await ctx.reply("You are not authorized to reject additions")
+        return
+    else:
+        global proposed_additions
+        proposed_additions.pop(number+1)
+        await ctx.reply(f"Rejected addition")
+
+@bot.command(name = "search_add_list")
+async def list_additions(ctx):
+    global proposed_additions
+
+    sentence = ""
+    for addition in proposed_additions:
+        sentence += f"{proposed_additions.index(addition)}: {addition}\n"
+
+    if sentence == "":
+        await ctx.reply("No additions to list")
+    else:
+        await ctx.reply(sentence)
+        
+    
 # Make it so that if anyone direct messages the bot it will respond with a message
 @bot.event
 async def on_message(message):
@@ -139,7 +206,10 @@ async def on_ready():
     await daily_commands(bot)
     load_queues()
     print("Bot Online")
+    
+    # Creates the list of indexes for the search engine to use
     global indexes 
     indexes= create_indexes("info/formattedFiles")
 
+# Runs the bot with the Discord Token
 bot.run(TOKEN)

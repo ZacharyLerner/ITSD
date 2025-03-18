@@ -16,3 +16,6 @@ indexdir
 .env 
 
 info/asked_questions.txt
+
+info/SN_Email_Checker.py
+info/SN_Kb_Creator.py

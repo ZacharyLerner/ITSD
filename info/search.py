@@ -2,6 +2,7 @@ import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+# Function to set up the TfidfVectorizer and transform the sentences
 def setup_tfidf(file_path):
     # Read file
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -18,6 +19,7 @@ def setup_tfidf(file_path):
     
     return vectorizer, sentence_vectors, sentences
 
+# Function to create indexes for all files in the data directory
 def create_indexes(data_dir):
     indexes = {}
     for filename in os.listdir(data_dir):
@@ -27,6 +29,7 @@ def create_indexes(data_dir):
             indexes[filename] = (vectorizer, sentence_vectors, sentences)
     return indexes
 
+# Function to rank sentences based on cosine similarity
 def rank_sentences(vectorizer, sentence_vectors, sentences, user_query, top_n):
     # Transform the query
     query_vector = vectorizer.transform([user_query])
@@ -40,21 +43,18 @@ def rank_sentences(vectorizer, sentence_vectors, sentences, user_query, top_n):
 
     # Get the top_n sentences
     top_results = scored_sentences[:top_n]
-
-    # Calculate token cost (optional usage)
-    token_cost = 0
-    for sentence in top_results:
-        token_cost += len(sentence[0].split())
        
-    return top_results, token_cost
+    return top_results
 
+# Function to search for a query in the indexes
+# This is called by other files to search for a query in the indexes
 def search_in_indexes(indexes, query, top_n=10):
     results = {}
 
     # Collect top_n results from each file
     for filename, index_data in indexes.items():
         vectorizer, sentence_vectors, sentences = index_data
-        top_results, token_cost = rank_sentences(vectorizer, sentence_vectors, sentences, query, top_n)
+        top_results = rank_sentences(vectorizer, sentence_vectors, sentences, query, top_n)
         results[filename] = top_results
 
     # Combine all non-zero similarity results
