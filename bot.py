@@ -25,7 +25,6 @@ intents.message_content = True
 # Global Variable that stores the message ID for the last bot Queue Message
 last_bot_message = ""
 indexes = []
-proposed_additions = []
 
 # All Commands must have !
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -93,64 +92,12 @@ async def ask_question(ctx, *, question):
                     f"Question: {question}\n"
                     f"Response: {response}\n"
                     f"-----------------------------------\n")
+
+@bot.command(name = "reload_times")
+async def reload_times(ctx):
+    await daily_commands(bot)
+    await ctx.reply("Reloaded bot times")
     
-@bot.command(name = "search_add")
-async def add_to_search(ctx, *, addition):
-    global proposed_additions
-    proposed_additions.append(addition)
-    await ctx.reply(f"Added '{addition}' to proposed additions")
-
-@bot.command(name = "search_approve")
-async def approve_addition(ctx, *, number):
-    await ctx.reply(f"{number}")
-    # check if the person approving is the correct person
-    if ctx.author.id != DM_User:
-        await ctx.reply("You are not authorized to approve additions")
-        return
-    elif number >= len(proposed_additions) + 1:
-        await ctx.reply("Invalid number")
-        return
-    else:
-        global indexes
-        with open("info/formattedFiles/additions.json", "r", encoding='utf-8') as file:
-            additions = json.load(file)
-
-        addition = proposed_additions[number]
-
-        additions.append(addition)
-
-        with open("info/formattedFiles/additions.json", "w", encoding='utf-8') as file:
-            json.dump(additions, file, indent=4)
-
-        # recreate the indexes
-        indexes = create_indexes("info/formattedFiles")
-
-        await ctx.reply(f"Added '{addition}' to the search engine")
-
-@bot.command(name = "search_deny")
-async def reject_addition(ctx, *, number):
-    # check if the person approving is the correct person
-    if ctx.author.id != DM_User:
-        await ctx.reply("You are not authorized to reject additions")
-        return
-    else:
-        global proposed_additions
-        proposed_additions.pop(number+1)
-        await ctx.reply(f"Rejected addition")
-
-@bot.command(name = "search_add_list")
-async def list_additions(ctx):
-    global proposed_additions
-
-    sentence = ""
-    for addition in proposed_additions:
-        sentence += f"{proposed_additions.index(addition)}: {addition}\n"
-
-    if sentence == "":
-        await ctx.reply("No additions to list")
-    else:
-        await ctx.reply(sentence)
-        
     
 # Make it so that if anyone direct messages the bot it will respond with a message
 @bot.event
