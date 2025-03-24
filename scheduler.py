@@ -163,6 +163,8 @@ async def daily_commands(bot):
     scheduler = AsyncIOScheduler(event_loop=bot.loop, timezone='America/New_York')
 
     # clear scheduler
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
     scheduler.remove_all_jobs()
 
     values = get_values()
