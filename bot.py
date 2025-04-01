@@ -12,9 +12,10 @@ DM_User = int(os.getenv("DM_USER"))
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
-from scheduler import daily_commands, purge_channel, get_incidents
+from scheduler import daily_commands, purge_channel, get_incidents, write_suggested_values
 from info.search import create_indexes, search_in_indexes
 from info.ai_reader import ask_openai
+from suggestionWritter import write_values
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -93,11 +94,26 @@ async def ask_question(ctx, *, question):
                     f"Response: {response}\n"
                     f"-----------------------------------\n")
 
+# Reloads the times for the bot to run the daily commands
+# Ex. !reload_times will reload the times for the bot to run the daily commands
 @bot.command(name = "reload_times")
 async def reload_times(ctx):
     await daily_commands(bot)
     await ctx.reply("Reloaded bot times")
-    
+
+# Adds a suggestion to the suggestion list
+# Ex. !search_add "Android 14 devices now work" will add the suggestion to the list
+@bot.command(name = "search_add")
+async def suggest(ctx, *, suggestion):
+    write_values(suggestion)
+    await ctx.reply("Suggestion has been recorded")
+
+# Updates the suggestion list
+# Ex. !search_update will update the suggestion list
+@bot.command(name = "search_update")
+async def update(ctx):
+    write_suggested_values()
+    await ctx.reply("Suggestion list has been updated")
     
 # Make it so that if anyone direct messages the bot it will respond with a message
 @bot.event

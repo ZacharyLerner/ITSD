@@ -1,6 +1,8 @@
 import os
 import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from suggestionWritter import check_values
+import json
 
 import discord
 from discord.ext import tasks
@@ -16,7 +18,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 SAMPLE_SPREADSHEET_ID = "1jhAGP9f5k5g5kjfDCwiJiLWZLg0xuJb18dF1t34PXR8"
 SAMPLE_RANGE_NAME = "Times"
@@ -57,7 +59,26 @@ def get_values():
     except HttpError as err:
         print(err)
         return None
+    
+def write_suggested_values():
+  values = check_values()
+  
+  suggestions = []
+  for value in values:
+      suggestions.append(value[2])
 
+  print(suggestions)
+  current_values = []
+  # get current values from additions.json
+  with open('info/formattedFiles/additions.json', 'r', encoding='utf-8') as f:
+    current_values = json.load(f)
+
+  current_values.extend(suggestions)
+
+  # Write the extracted suggestions to a JSON file in the formattedFiles directory
+  output_dir = 'info/formattedFiles'
+  with open(os.path.join(output_dir, 'additions.json'), 'w', encoding='utf-8') as its_file:
+    json.dump(current_values, its_file, indent=4, ensure_ascii=False)
 
 async def purge_channel(bot):
     """
