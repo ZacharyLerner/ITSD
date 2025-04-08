@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 import re
 import json
 from docx import Document
-from SN_Kb_Creator import gather_docs
+from .servicenow import gather_docs
 import os
 
 # Goes through Internal Site HTML files and extracts all text within each dropdown menu
@@ -120,7 +120,4 @@ def create_json_files():
             with open(os.path.join(output_dir, f'{folder}.json'), 'w', encoding='utf-8') as its_file:
                 json.dump(content, its_file, indent=4, ensure_ascii=False)
                 print(f"Finished writing {folder}.json")
-
-# Run the function to create JSON files
-create_json_files()
         

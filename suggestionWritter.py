@@ -197,7 +197,9 @@ def delete_rows_with_true():
     except HttpError as err:
         print(f"An error occurred: {err}")
     
-    
+# Gets all valid values from the spreadsheet
+# A valid value is one where column A is FALSE and column B is FALSE
+# Returns a list of valid values after deleting the rows with TRUE in column A or B
 def check_values():
     values = get_values()
     checked_values = []

@@ -17,12 +17,18 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from info.servicenow import get_access_token, incident_query
+
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 SAMPLE_SPREADSHEET_ID = "1jhAGP9f5k5g5kjfDCwiJiLWZLg0xuJb18dF1t34PXR8"
 SAMPLE_RANGE_NAME = "Times"
 
+def test(bot):
+    print_val = incident_query(get_access_token())
+    return print_val
+    
 
 def get_values():
     """
@@ -80,6 +86,7 @@ def write_suggested_values():
   with open(os.path.join(output_dir, 'additions.json'), 'w', encoding='utf-8') as its_file:
     json.dump(current_values, its_file, indent=4, ensure_ascii=False)
 
+
 async def purge_channel(bot):
     """
     Deletes all messages in the #jabber-shift-chat channel,
@@ -129,18 +136,10 @@ async def schedule_printer_check(bot, scheduler, days, times, enabled):
 
 
 async def get_incidents(bot):
-    """
-    Checks how many incidents (emails) we have, sends a message to #jabber-shift-chat.
-    """
+    inc_num = incident_query(get_access_token())
     guild = bot.guilds[0]
     channel = discord.utils.get(guild.text_channels, name="jabber-shift-chat")
-    incidents_resp = requests.get("http://127.0.0.1:5000/incidents")
-    if incidents_resp.status_code == 200:
-        data = incidents_resp.json()
-        incident_count = data.get("incident_count")
-        await channel.send(f"We have {incident_count} new emails")
-    else:
-        print("Incident check failed:", incidents_resp.text)
+    await channel.send(f"We have {inc_num} new emails")
 
 
 async def schedule_get_incidents(bot, scheduler, days, times, enabled):
@@ -227,6 +226,7 @@ async def daily_commands(bot):
     # Also schedule daily purge & 30-min refresh
     await schedule_daily_purge(bot, scheduler)
     await schedule_refresh(bot, scheduler)
+    write_suggested_values()
 
     # If the scheduler wasn't started yet, start it
     if not scheduler.running:

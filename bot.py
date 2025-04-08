@@ -16,6 +16,7 @@ from scheduler import daily_commands, purge_channel, get_incidents, write_sugges
 from info.search import create_indexes, search_in_indexes
 from info.ai_reader import ask_openai
 from suggestionWritter import write_values
+from info.document_creator import create_json_files
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -114,6 +115,12 @@ async def suggest(ctx, *, suggestion):
 async def update(ctx):
     write_suggested_values()
     await ctx.reply("Suggestion list has been updated")
+
+@bot.command(name = "create_json")
+async def create_json(ctx):
+    create_json_files()
+    await ctx.reply("JSON files have been created")
+
     
 # Make it so that if anyone direct messages the bot it will respond with a message
 @bot.event
