@@ -4,6 +4,12 @@ import json
 from docx import Document
 from .servicenow import gather_docs
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+data_dir = os.getenv("data_dir")
+output_dir = os.getenv("output_dir")
+
 
 # Goes through Internal Site HTML files and extracts all text within each dropdown menu
 # Returns a list of strings, each string representing the text within a dropdown menu
@@ -92,10 +98,6 @@ def read_json_file(file_path):
 # Creates JSON files from the data in the data directory
 # The JSON files are formatted and stored in the formattedFiles directory
 def create_json_files():
-
-    # Change the data_dir and output_dir to the appropriate directories
-    data_dir = '/Users/zacharylerner/Documents/ITSD/info/data'
-    output_dir = '/Users/zacharylerner/Documents/ITSD/info/formattedFiles'
     os.makedirs(output_dir, exist_ok=True)
     
     # Loop through each folder in the data directory
