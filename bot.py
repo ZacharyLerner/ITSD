@@ -29,7 +29,7 @@ last_bot_message = ""
 indexes = []
 
 # All Commands must have !
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
 
 # BOT COMMANDS 
 
@@ -121,6 +121,35 @@ async def create_json(ctx):
     create_json_files()
     await ctx.reply("JSON files have been created")
 
+@bot.command(name = 'help')
+async def custom_help(ctx):
+    help_text = """
+    **Available Commands**
+
+    __General Queue Commands:__
+    `!queue` - Show the current queue.
+    `!add @User` - Add a user to the queue.
+    `!remove @User` - Remove a user from the queue.
+    `!react @User` - React on behalf of a user.
+    `!clear` - Clear all queues.
+
+    __Channel Management:__
+    `!purge` - Clear the Jabber-Shift-Chat channel.
+    `!reload_times` - Reload bot task schedule.
+
+    __Incident + Search Functions:__
+    `!incidents` - Get active incidents (emails).
+    `!search "question"` - Ask a question and get internal documentation answers.
+    `!search_add "text"` - Suggest content for the search.
+    `!search_update` - Update suggestion list (Only TLs can approve suggestions). 
+
+    __Other:__
+    `!create_json` - Create JSON files from formatted data if KBs are out of date
+    `!help` - Display this help message.
+
+    *You can also DM the bot with ITSD questions and it will reply with answers from the internal search engine.*
+    """
+    await ctx.send(help_text)
     
 # Make it so that if anyone direct messages the bot it will respond with a message
 @bot.event
@@ -151,7 +180,7 @@ async def on_message(message):
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
-        await ctx.send('Unknown command. Please use !add, !remove, !queue, !clear, !react')
+        await ctx.send('Unknown command. Check the list of commands with !help.')
 
 # After every command is run the queue will be saved to a JSON File
 @bot.event

@@ -1,7 +1,7 @@
 import os
 import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from suggestionWritter import check_values
+from suggestionWritter import check_values, get_length_values
 import json
 
 import discord
@@ -24,11 +24,6 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 SAMPLE_SPREADSHEET_ID = "1jhAGP9f5k5g5kjfDCwiJiLWZLg0xuJb18dF1t34PXR8"
 SAMPLE_RANGE_NAME = "Times"
-
-def test(bot):
-    print_val = incident_query(get_access_token())
-    return print_val
-    
 
 def get_values():
     """
@@ -99,6 +94,17 @@ async def purge_channel(bot):
 
     # Rebuild the daily commands schedule with fresh data
     await daily_commands(bot)
+
+async def check_search_add(bot):
+    num_check_add  = get_length_values()
+    guild = bot.guilds[0]
+    channel = discord.utils.get(guild.text_channels, name="jabber-shift-chat")
+    if num_check_add != 0:
+        await channel.send(f"Team Leaders: We have {num_check_add} new suggestions to add to the search engine.")
+
+async def schedule_check_search_add(bot, scheduler):
+    """Schedules a check for new suggestions every day at 8:01 AM."""
+    scheduler.add_job(check_search_add, 'cron', hour=8, minute=1, misfire_grace_time=60, args=[bot])
 
 
 async def printer_check(bot):
@@ -226,6 +232,7 @@ async def daily_commands(bot):
     # Also schedule daily purge & 30-min refresh
     await schedule_daily_purge(bot, scheduler)
     await schedule_refresh(bot, scheduler)
+    await schedule_check_search_add(bot, scheduler)
     write_suggested_values()
 
     # If the scheduler wasn't started yet, start it

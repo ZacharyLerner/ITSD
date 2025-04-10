@@ -209,3 +209,13 @@ def check_values():
     delete_rows_with_true()
     return checked_values
             
+def get_length_values():
+    new_not_approved = 0
+    values = get_values()
+    for value in values:
+        if value[0] == "FALSE" and value[1] == "FALSE":
+            new_not_approved += 1
+    return new_not_approved
+
+print(get_length_values())
+    
