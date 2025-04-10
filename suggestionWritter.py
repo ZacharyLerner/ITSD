@@ -216,6 +216,3 @@ def get_length_values():
         if value[0] == "FALSE" and value[1] == "FALSE":
             new_not_approved += 1
     return new_not_approved
-
-print(get_length_values())
-    
