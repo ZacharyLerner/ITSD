@@ -120,6 +120,8 @@ async def update(ctx):
 async def create_json(ctx):
     create_json_files()
     await ctx.reply("JSON files have been created")
+    global indexes 
+    indexes= create_indexes("info/formattedFiles")
 
 @bot.command(name = 'help')
 async def custom_help(ctx):
