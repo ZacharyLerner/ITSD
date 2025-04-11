@@ -16,7 +16,7 @@ CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
 import logging as log
-log.basicConfig(format='%(levelname)s:%(message)s', level=log.INFO)
+log.basicConfig(format='%(levelname)s:%(message)s', level=log.ERROR)
 
 TOKEN_FILE = 'refresh.token'
 
@@ -239,8 +239,8 @@ def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
 
             if text_key not in seen_texts:
                 seen_texts.add(text_key)
-                sys_id = record.get('sys_id', '')
-                link = f"https://{instance}.service-now.com/kb?id=kb_article_view&sys_kb_id={sys_id}"
+                display_number = record.get('number', '')
+                link = f"https://uriprod.service-now.com/kb?id=kb_article_view&sysparm_article={display_number}"
                 combined_text = f"{short_desc} {meta_desc}. LINK: {link}"
                 combined_text = re.sub(r',', '', combined_text)
                 gathered.append(combined_text)
