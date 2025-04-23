@@ -110,7 +110,7 @@ async def schedule_check_search_add(bot, scheduler):
 async def printer_check(bot):
     """Sends a message in #printer-checks to remind about checking printers."""
     guild = bot.guilds[0]
-    channel = discord.utils.get(guild.text_channels, name="printer-checks")
+    channel = discord.utils.get(guild.text_channels, name="jabber-shift-chat")
     await channel.send("Please check the printers")
 
 
