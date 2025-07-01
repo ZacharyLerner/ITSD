@@ -26,7 +26,7 @@ intents.message_content = True
 
 # Global Variable that stores the message ID for the last bot Queue Message
 last_bot_message = ""
-indexes = []
+indexes = {}
 
 # All Commands must have !
 bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
@@ -37,6 +37,11 @@ bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
 # Ex. !queue will print who is on the ready and not ready queue
 @bot.command(name = "queue")
 async def print_queue(ctx):
+    global last_bot_message 
+    last_bot_message = await ctx.send(get_queue())
+
+@bot.command(name = "q")
+async def print_queue_second(ctx):
     global last_bot_message 
     last_bot_message = await ctx.send(get_queue())
 

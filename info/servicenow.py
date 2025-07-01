@@ -177,8 +177,8 @@ def incident_query(access_token, one_shot=False):
     
     # Check if the request was successful
     if response.status_code == 200:
-        log.debug(f"Query Response Body")
-        log.debug(response.text)       
+        log.debug(f"Query Respons e Body")
+        log.debug(response.text)      
 
         try:
             inc_query = response.json()
@@ -240,7 +240,7 @@ def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
             if text_key not in seen_texts:
                 seen_texts.add(text_key)
                 display_number = record.get('number', '')
-                link = f"https://uriprod.service-now.com/kb?id=kb_article_view&sysparm_article={display_number}"
+                link = f"https://{instance}.service-now.com/kb?id=kb_article_view&sysparm_article={display_number}"
                 combined_text = f"{short_desc} {meta_desc}. LINK: {link}"
                 combined_text = re.sub(r',', '', combined_text)
                 gathered.append(combined_text)
