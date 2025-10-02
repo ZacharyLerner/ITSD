@@ -6,6 +6,10 @@ oldBot.py
 tempCodeRunnerFile.py
 info/login.py
 
+venv
+
+sensitive_messages.json
+
 documents
 
 info/formattedFiles

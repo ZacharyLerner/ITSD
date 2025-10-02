@@ -1,3 +1,4 @@
+from email.mime import message
 import discord
 from discord.ext import commands
 import os 
@@ -17,6 +18,7 @@ from info.search import create_indexes, search_in_indexes
 from info.ai_reader import ask_openai
 from suggestionWritter import write_values
 from info.document_creator import create_json_files
+from security import write_as_sensitive
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -109,14 +111,14 @@ async def reload_times(ctx):
 
 # Adds a suggestion to the suggestion list
 # Ex. !search_add "Android 14 devices now work" will add the suggestion to the list
-@bot.command(name = "search_add")
+@bot.command(name = "teach")
 async def suggest(ctx, *, suggestion):
     write_values(suggestion)
     await ctx.reply("Suggestion has been recorded")
 
 # Updates the suggestion list
 # Ex. !search_update will update the suggestion list
-@bot.command(name = "search_update")
+@bot.command(name = "update")
 async def update(ctx):
     write_suggested_values()
     await ctx.reply("Suggestion list has been updated")
@@ -128,6 +130,13 @@ async def create_json(ctx):
     global indexes 
     indexes= create_indexes("info/formattedFiles")
 
+@bot.command(name="sen", aliases=["SEN"])
+async def sen_check(ctx):
+    if ctx.message.author == bot.user:
+        return
+    await write_as_sensitive(ctx.message)
+    await ctx.message.add_reaction("🗑️")
+    
 @bot.command(name = 'help')
 async def custom_help(ctx):
     help_text = """
@@ -147,8 +156,8 @@ async def custom_help(ctx):
     __Incident + Search Functions:__
     `!incidents` - Get active incidents (emails).
     `!search "question"` - Ask a question and get internal documentation answers.
-    `!search_add "text"` - Suggest content for the search.
-    `!search_update` - Update suggestion list (Only TLs can approve suggestions). 
+    `!teach "text"` - Suggest content for the search.
+    `!update` - Update suggestion list (Only TLs can approve suggestions). 
 
     __Other:__
     `!create_json` - Create JSON files from formatted data if KBs are out of date
@@ -171,6 +180,7 @@ async def on_message(message):
             response = ask_openai(message.content, results, OPEN_API_API)
         await message.channel.send(response)
 
+        """
         #dm ScuffedLad the question and response
         user = await bot.fetch_user(511332467077283850)
         info_message = (f"User: {message.author.display_name} || Time: {message.created_at}\n"
@@ -179,6 +189,7 @@ async def on_message(message):
                         f"-----------------------------------\n")
         
         await user.send(info_message)
+        """
     else:
         await bot.process_commands(message)
 

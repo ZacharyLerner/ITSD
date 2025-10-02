@@ -1,6 +1,7 @@
 import os
 import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from security import delete_message, check_for_old_messages
 from suggestionWritter import check_values, get_length_values
 import json
 
@@ -81,6 +82,19 @@ def write_suggested_values():
   with open(os.path.join(output_dir, 'additions.json'), 'w', encoding='utf-8') as its_file:
     json.dump(current_values, its_file, indent=4, ensure_ascii=False)
 
+async def bot_check_for_old_messages(bot):
+    old_messages = check_for_old_messages()
+    for message in old_messages:
+        message_id = message.get("message_id")
+        channel_id = message.get("channel_id")
+        if not message_id or not channel_id:
+            print(f"Warning: entry missing IDs: {message}")
+            continue
+        await delete_message(bot, message_id, channel_id)
+
+def schedule_check_old_messages(bot, scheduler):
+    scheduler.add_job(bot_check_for_old_messages, 'interval', seconds=5, args=[bot])
+    print("Old Message Check Scheduled")
 
 async def purge_channel(bot):
     """
@@ -174,18 +188,6 @@ async def schedule_get_incidents(bot, scheduler, days, times, enabled):
                 )
         print("Incidents Scheduled")
 
-
-async def refresh_page(bot):
-    """Hit the /refresh endpoint to keep it alive or force a refresh."""
-    requests.get("http://127.0.0.1:5000/refresh")
-
-
-async def schedule_refresh(bot, scheduler):
-    """Schedules a refresh of the page every 30 minutes."""
-    print("Refresh Scheduled")
-    scheduler.add_job(refresh_page, 'interval', minutes=30, misfire_grace_time=60, args=[bot])
-
-
 async def schedule_daily_purge(bot, scheduler):
     """Schedules a daily purge of the #jabber-shift-chat channel at 12:01 AM."""
     print("Purge Scheduled")
@@ -229,11 +231,10 @@ async def daily_commands(bot):
         else:
             print("Invalid command from time sheet:", command_name)
 
-    # Also schedule daily purge & 30-min refresh
     await schedule_daily_purge(bot, scheduler)
-    await schedule_refresh(bot, scheduler)
     await schedule_check_search_add(bot, scheduler)
     write_suggested_values()
+    schedule_check_old_messages(bot, scheduler)
 
     # If the scheduler wasn't started yet, start it
     if not scheduler.running:
