@@ -1,7 +1,6 @@
 import os
 import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from security import delete_message, check_for_old_messages
 from suggestionWritter import check_values, get_length_values
 import json
 
@@ -18,7 +17,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from info.servicenow import get_access_token, incident_query
+from servicenow import get_access_token, incident_query
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -72,29 +71,15 @@ def write_suggested_values():
   print(suggestions)
   current_values = []
   # get current values from additions.json
-  with open('info/formattedFiles/additions.json', 'r', encoding='utf-8') as f:
+  with open('LLM_Files/additions.json', 'r', encoding='utf-8') as f:
     current_values = json.load(f)
 
   current_values.extend(suggestions)
 
   # Write the extracted suggestions to a JSON file in the formattedFiles directory
-  output_dir = 'info/formattedFiles'
+  output_dir = 'LLM_Files'
   with open(os.path.join(output_dir, 'additions.json'), 'w', encoding='utf-8') as its_file:
     json.dump(current_values, its_file, indent=4, ensure_ascii=False)
-
-async def bot_check_for_old_messages(bot):
-    old_messages = check_for_old_messages()
-    for message in old_messages:
-        message_id = message.get("message_id")
-        channel_id = message.get("channel_id")
-        if not message_id or not channel_id:
-            print(f"Warning: entry missing IDs: {message}")
-            continue
-        await delete_message(bot, message_id, channel_id)
-
-def schedule_check_old_messages(bot, scheduler):
-    scheduler.add_job(bot_check_for_old_messages, 'interval', seconds=5, args=[bot])
-    print("Old Message Check Scheduled")
 
 async def purge_channel(bot):
     """
@@ -234,7 +219,6 @@ async def daily_commands(bot):
     await schedule_daily_purge(bot, scheduler)
     await schedule_check_search_add(bot, scheduler)
     write_suggested_values()
-    schedule_check_old_messages(bot, scheduler)
 
     # If the scheduler wasn't started yet, start it
     if not scheduler.running:

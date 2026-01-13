@@ -7,18 +7,16 @@ import json
 
 # Load the .env file to get the Discord Token and OpenAI API Key
 load_dotenv()
-OPEN_API_API = os.getenv("OPEN_AI_API")
 TOKEN = os.getenv("DISCORD_TOKEN")
 DM_User = int(os.getenv("DM_USER"))
+output_dir = os.getenv("output_dir")
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
 from scheduler import daily_commands, purge_channel, get_incidents, write_suggested_values
-from info.search import create_indexes, search_in_indexes
-from info.ai_reader import ask_openai
 from suggestionWritter import write_values
-from info.document_creator import create_json_files
-from security import write_as_sensitive
+from ask_anythingLLM import ask_anythingllm
+from LLM_File_Manager import update_database
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -91,16 +89,8 @@ async def incidents(ctx):
 async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
-        results = search_in_indexes(indexes, question)
-        response = ask_openai(question, results, OPEN_API_API)
+        response = ask_anythingllm(question)
     await ctx.reply(response)
-
-    # dm ScuffedLad the question and response
-    user = await bot.fetch_user(DM_User)
-    info_message = (f"User: {ctx.author.display_name} || Time: {ctx.message.created_at}\n"
-                    f"Question: {question}\n"
-                    f"Response: {response}\n"
-                    f"-----------------------------------\n")
 
 # Reloads the times for the bot to run the daily commands
 # Ex. !reload_times will reload the times for the bot to run the daily commands
@@ -110,33 +100,19 @@ async def reload_times(ctx):
     await ctx.reply("Reloaded bot times")
 
 # Adds a suggestion to the suggestion list
-# Ex. !search_add "Android 14 devices now work" will add the suggestion to the list
+# Ex. !teach "Android 14 devices now work" will add the suggestion to the list
 @bot.command(name = "teach")
 async def suggest(ctx, *, suggestion):
     write_values(suggestion)
     await ctx.reply("Suggestion has been recorded")
 
 # Updates the suggestion list
-# Ex. !search_update will update the suggestion list
 @bot.command(name = "update")
 async def update(ctx):
     write_suggested_values()
-    await ctx.reply("Suggestion list has been updated")
+    update_database()
+    await ctx.reply("Search files have been updated")
 
-@bot.command(name = "create_json")
-async def create_json(ctx):
-    create_json_files()
-    await ctx.reply("JSON files have been created")
-    global indexes 
-    indexes= create_indexes("info/formattedFiles")
-
-@bot.command(name="sen", aliases=["SEN"])
-async def sen_check(ctx):
-    if ctx.message.author == bot.user:
-        return
-    await write_as_sensitive(ctx.message)
-    await ctx.message.add_reaction("🗑️")
-    
 @bot.command(name = 'help')
 async def custom_help(ctx):
     help_text = """
@@ -157,7 +133,8 @@ async def custom_help(ctx):
     `!incidents` - Get active incidents (emails).
     `!search "question"` - Ask a question and get internal documentation answers.
     `!teach "text"` - Suggest content for the search.
-    `!update` - Update suggestion list (Only TLs can approve suggestions). 
+    `!teach_update` - Update suggestion list (Only TLs can approve suggestions). 
+    `!db_update` - Updates the Database Backend if changes to Search Files have been made.
 
     __Other:__
     `!create_json` - Create JSON files from formatted data if KBs are out of date
@@ -172,24 +149,14 @@ async def custom_help(ctx):
 async def on_message(message):
     if message.author == bot.user:
         return
-    # query the search engine
+    
     if message.channel.type == discord.ChannelType.private:
-        # type while searching
         async with message.channel.typing():
-            results = search_in_indexes(indexes, message.content)
-            response = ask_openai(message.content, results, OPEN_API_API)
-        await message.channel.send(response)
-
-        """
-        #dm ScuffedLad the question and response
-        user = await bot.fetch_user(511332467077283850)
-        info_message = (f"User: {message.author.display_name} || Time: {message.created_at}\n"
-                        f"Question: {message.content}\n"
-                        f"Response: {response}\n"
-                        f"-----------------------------------\n")
-        
-        await user.send(info_message)
-        """
+            try:
+                response = ask_anythingllm(message.content)
+                await message.channel.send(response)
+            except Exception as e:
+                await message.channel.send(f"Error: {e}")
     else:
         await bot.process_commands(message)
 
@@ -216,17 +183,12 @@ async def on_reaction_add(reaction, user):
         await last_bot_message.remove_reaction(reaction.emoji, user)
     save_queues()
 
-
 # When the bot comes online all daily commands a run and the queue is loaded from the JSON File 
 @bot.event
 async def on_ready():
     await daily_commands(bot)
     load_queues()
     print("Bot Online")
-    
-    # Creates the list of indexes for the search engine to use
-    global indexes 
-    indexes= create_indexes("info/formattedFiles")
 
 # Runs the bot with the Discord Token
 bot.run(TOKEN)

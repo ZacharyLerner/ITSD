@@ -30,3 +30,7 @@ refresh.token
 requirements.txt
 
 info/data
+
+LLM_Files
+
+document_locations.json
