@@ -16,7 +16,7 @@ from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue,
 from scheduler import daily_commands, purge_channel, get_incidents, write_suggested_values
 from suggestionWritter import write_values
 from ask_anythingLLM import ask_anythingllm
-from LLM_File_Manager import update_database
+from LLM_Upload_Manager import update_doc, full_upload
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -90,6 +90,7 @@ async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
         response = ask_anythingllm(question)
+        response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS.*"
     await ctx.reply(response)
 
 # Reloads the times for the bot to run the daily commands
@@ -110,8 +111,11 @@ async def suggest(ctx, *, suggestion):
 @bot.command(name = "update")
 async def update(ctx):
     write_suggested_values()
-    update_database()
-    await ctx.reply("Search files have been updated")
+    try:
+        update_doc("LLM_Files/additions.json")
+        await ctx.reply("Teach file have been updated")
+    except Exception as e:
+        await ctx.reply(f"Upload failed: {e}")
 
 @bot.command(name = 'help')
 async def custom_help(ctx):
