@@ -4,6 +4,7 @@ from discord.ext import commands
 import os 
 from dotenv import load_dotenv
 import json
+from datetime import datetime
 
 # Load the .env file to get the Discord Token and OpenAI API Key
 load_dotenv()
@@ -28,8 +29,40 @@ intents.message_content = True
 last_bot_message = ""
 indexes = {}
 
+# Folder to store testing data such as feedback or AI documents 
+DATA_FOLDER = "data"
+
 # All Commands must have !
 bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
+
+import os
+
+def log_feedback(user, message, file):
+    clean_content = message.content[:-130].strip()
+    entry = {
+        "timestamp": str(datetime.now()),
+        "user": user.display_name,
+        "message_id": message.id,
+        "message": clean_content
+    }
+
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    filepath = os.path.join(DATA_FOLDER, file)
+
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                f.seek(0)
+                data = [json.loads(line) for line in f if line.strip()]
+    else:
+        data = []
+
+    data.append(entry)
+
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
 
 # BOT COMMANDS 
 
@@ -181,11 +214,21 @@ async def on_command_completion(ctx):
 @bot.event
 async def on_reaction_add(reaction, user):
     global last_bot_message
+    
+    # checks for reactions to messages for the zoom que 
     if reaction.message == last_bot_message:
         react_queue(user.display_name)
         await last_bot_message.edit(content = get_queue())
         await last_bot_message.remove_reaction(reaction.emoji, user)
-    save_queues()
+        save_queues()
+
+    # checks for feedback reactions for bot responses 
+    elif reaction.message.channel.name == "bot-commands":
+        if reaction.message.author == bot.user:
+            if str(reaction.emoji) == "👍":
+                log_feedback(user, reaction.message, "positive_feedback.json")
+            elif str(reaction.emoji) == "👎":
+                log_feedback(user, reaction.message, "negative_feedback.json")
 
 # When the bot comes online all daily commands a run and the queue is loaded from the JSON File 
 @bot.event
