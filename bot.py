@@ -146,7 +146,7 @@ async def update(ctx):
     write_suggested_values()
     try:
         update_doc("LLM_Files/additions.json")
-        await ctx.reply("Teach file have been updated")
+        await ctx.reply("Teach file has been updated")
     except Exception as e:
         await ctx.reply(f"Upload failed: {e}")
 
