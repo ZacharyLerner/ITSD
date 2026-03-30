@@ -38,7 +38,7 @@ bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
 import os
 
 def log_feedback(user, message, file):
-    clean_content = message.content[:-130].strip()
+    clean_content = message.content[:-160].strip()
     entry = {
         "timestamp": str(datetime.now()),
         "user": user.display_name,
