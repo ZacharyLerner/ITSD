@@ -122,7 +122,7 @@ async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
         response = ask_anythingllm(question)
-        response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS.*"
+        response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
     await ctx.reply(response)
 
 # Reloads the times for the bot to run the daily commands
