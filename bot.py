@@ -41,7 +41,6 @@ def log_feedback(user, message, file):
     clean_content = message.content[:-160].strip()
     entry = {
         "timestamp": str(datetime.now()),
-        "user": user.display_name,
         "message_id": message.id,
         "message": clean_content
     }
