@@ -89,6 +89,18 @@ async def add_user(ctx, member: discord.Member):
 async def remove_user(ctx, member: discord.Member):
     await ctx.send(remove_from_queue(member.display_name))
 
+# Adds a User to the Queue with their Display_Name
+# Ex. !join will print a message confirming a person has been added to the Queue
+@bot.command(name = "join")
+async def add_user(ctx):
+    await ctx.send(add_to_queue(ctx.author.display_name))
+
+# Removes a user from the Queue
+# Ex. !leave will print a message confirming a person has been removed to the Queue
+@bot.command(name = "leave")
+async def remove_user(ctx):
+    await ctx.send(remove_from_queue(ctx.author.display_name))
+
 # "Reacts" on the behalf of a specific user. 
 # Ex. !react @@ExampleUser will move them to the other queue, just as reacting to the message would, and will reprint the queue
 @bot.command(name = "react")
@@ -105,7 +117,6 @@ async def clear_queue(ctx):
 
 # Purges the Jabber-Shift-Chat channel of all messages
 # Ex. !purge will clear the Jabber-Shift-Chat channel of all messages
-# testing test
 @bot.command(name = "purge")
 async def purge(ctx):
     await purge_channel(bot)
