@@ -105,6 +105,7 @@ async def clear_queue(ctx):
 
 # Purges the Jabber-Shift-Chat channel of all messages
 # Ex. !purge will clear the Jabber-Shift-Chat channel of all messages
+# testing test
 @bot.command(name = "purge")
 async def purge(ctx):
     await purge_channel(bot)
