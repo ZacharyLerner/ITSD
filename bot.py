@@ -37,6 +37,41 @@ bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
 
 import os
 
+def track_suggestions(message):
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    filepath = os.path.join(DATA_FOLDER, "track_suggestions.json")
+
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                f.seek(0)
+                data = [json.loads(line) for line in f if line.strip()]
+    else:
+        data = []
+
+    if message.id not in data:
+        data.append(message.id)
+
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
+
+def load_suggestions():
+    filepath = os.path.join(DATA_FOLDER, "track_suggestions.json")
+    if not os.path.exists(filepath):
+        return []
+    with open(filepath, "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            f.seek(0)
+            data = [json.loads(line) for line in f if line.strip()]
+    return data
+
+def suggestion_recorded(message_id):
+    return message_id in load_suggestions()
+
 def log_feedback(user, message, file):
     clean_content = message.content[:-175].strip()
     entry = {
@@ -241,7 +276,7 @@ async def on_reaction_add(reaction, user):
         guild = bot.guilds[0]
         channel = discord.utils.get(guild.text_channels, name="additions")
         if reaction.message.author == bot.user:
-            if str(reaction.emoji) == "👍":
+            if str(reaction.emoji) == "👍" and not suggestion_recorded(reaction.message.id):
                 filepath = "LLM_Files/additions.json"
                 if os.path.exists(filepath):
                     with open(filepath, "r", encoding="utf-8") as f:
@@ -252,11 +287,12 @@ async def on_reaction_add(reaction, user):
                 with open(filepath, "w", encoding="utf-8") as f:
                     json.dump(additions, f, indent=4, ensure_ascii=False)
                 try:
+                    track_suggestions(reaction.message)
                     update_doc("LLM_Files/additions.json")
                     await channel.send("Teach file has been updated")
                 except Exception as e:
                     await channel.send(f"Upload failed: {e}")
-            elif str(reaction.emoji) == "👎":
+            elif str(reaction.emoji) == "👎" and not suggestion_recorded(reaction.message.id):
                 await reaction.message.delete();
 
 # When the bot comes online all daily commands a run and the queue is loaded from the JSON File 
