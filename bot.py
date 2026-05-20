@@ -14,10 +14,11 @@ output_dir = os.getenv("output_dir")
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
-from scheduler import daily_commands, purge_channel, get_incidents, write_suggested_values
+from scheduler import daily_commands, purge_channel, get_incidents, write_suggested_values, write_newsletter_scheduled
 from suggestionWritter import write_values
 from ask_anythingLLM import ask_anythingllm
 from LLM_Upload_Manager import update_doc, full_upload
+from newsletterManager import check_jabber_message, check_ticket_message, write_professional_chat, write_newsletter_managed
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -161,6 +162,11 @@ async def update(ctx):
     except Exception as e:
         await ctx.reply(f"Upload failed: {e}")
 
+@bot.command(name= "newsletter")
+async def write_newsletter(ctx):
+    message = write_newsletter_managed()
+    await write_newsletter_scheduled(bot, message)
+
 @bot.command(name = 'help')
 async def custom_help(ctx):
     help_text = """
@@ -198,6 +204,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
     
+    # DMs → AnythingLLM
     if message.channel.type == discord.ChannelType.private:
         async with message.channel.typing():
             try:
@@ -205,8 +212,28 @@ async def on_message(message):
                 await message.channel.send(response)
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
-    else:
-        await bot.process_commands(message)
+        return
+    
+    elif message.channel.name == "jabber-shift-chat":
+        try:
+            check_jabber_message(message.content)
+        except Exception as e:
+            print(f"Jabber Classifier error: {e}")
+
+    elif message.channel.name == "service-now-ticket-help":
+        try:
+            check_ticket_message(message.content)
+        except Exception as e:
+            print(f"Ticket Classifier error: {e}")
+
+    elif message.channel.name == "professional-chat":
+        try:
+            write_professional_chat(message.content)
+        except Exception as e:
+            print(f"Ticket Classifier error: {e}")
+    
+    await bot.process_commands(message)
+    
 
 
 # In the event that an invalid command is run it will print out possible correct commands

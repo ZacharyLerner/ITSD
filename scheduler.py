@@ -147,6 +147,12 @@ async def get_incidents(bot):
     await channel.send(f"We have {inc_num} new emails")
 
 
+async def write_newsletter_scheduled(bot, message):
+    guild = bot.guilds[0]
+    channel = discord.utils.get(guild.text_channels, name="newsletter")
+    await channel.send(message)
+
+
 async def schedule_get_incidents(bot, scheduler, days, times, enabled):
     """Schedules incident-check jobs for the given days/times if enabled."""
     days = days.split(",")
