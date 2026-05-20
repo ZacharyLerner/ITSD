@@ -1,7 +1,6 @@
 from email.mime import message
 import discord
 from discord import reaction
-from discord import reaction
 from discord.ext import commands
 import os 
 from dotenv import load_dotenv
