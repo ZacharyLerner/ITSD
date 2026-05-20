@@ -1,5 +1,6 @@
 from email.mime import message
 import discord
+from discord import reaction
 from discord.ext import commands
 import os 
 from dotenv import load_dotenv
@@ -14,8 +15,7 @@ output_dir = os.getenv("output_dir")
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
-from scheduler import daily_commands, purge_channel, get_incidents, write_suggested_values
-from suggestionWritter import write_values
+from scheduler import daily_commands, purge_channel, get_incidents
 from ask_anythingLLM import ask_anythingllm
 from LLM_Upload_Manager import update_doc, full_upload
 
@@ -36,6 +36,44 @@ DATA_FOLDER = "data"
 bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
 
 import os
+
+# Folder to store message ID's of already recorded suggestions to prevent duplicates
+def track_suggestions(message):
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    filepath = os.path.join(DATA_FOLDER, "track_suggestions.json")
+
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                f.seek(0)
+                data = [json.loads(line) for line in f if line.strip()]
+    else:
+        data = []
+
+    if message.id not in data:
+        data.append(message.id)
+
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
+
+# Loads the message ID's of already recorded suggestions
+def load_suggestions():
+    filepath = os.path.join(DATA_FOLDER, "track_suggestions.json")
+    if not os.path.exists(filepath):
+        return []
+    with open(filepath, "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            f.seek(0)
+            data = [json.loads(line) for line in f if line.strip()]
+    return data
+
+# Checks if a suggestion has already been recorded based on its message ID to prevent duplicates
+def suggestion_recorded(message_id):
+    return message_id in load_suggestions()
 
 def log_feedback(user, message, file):
     clean_content = message.content[:-175].strip()
@@ -62,6 +100,11 @@ def log_feedback(user, message, file):
 
     with open(filepath, "w") as f:
         json.dump(data, f, indent=2)
+
+async def write_values(suggestion):
+    guild = bot.guilds[0]
+    channel = discord.utils.get(guild.text_channels, name="additions")
+    await channel.send("\n**Suggestion (React with 👍 to approve or 👎 to deny):\n** \n" + suggestion)
 
 # BOT COMMANDS 
 
@@ -148,18 +191,8 @@ async def reload_times(ctx):
 # Ex. !teach "Android 14 devices now work" will add the suggestion to the list
 @bot.command(name = "teach")
 async def suggest(ctx, *, suggestion):
-    write_values(suggestion)
+    await write_values(suggestion)
     await ctx.reply("Suggestion has been recorded")
-
-# Updates the suggestion list
-@bot.command(name = "update")
-async def update(ctx):
-    write_suggested_values()
-    try:
-        update_doc("LLM_Files/additions.json")
-        await ctx.reply("Teach file has been updated")
-    except Exception as e:
-        await ctx.reply(f"Upload failed: {e}")
 
 @bot.command(name = 'help')
 async def custom_help(ctx):
@@ -170,6 +203,8 @@ async def custom_help(ctx):
     `!queue` - Show the current queue.
     `!add @User` - Add a user to the queue.
     `!remove @User` - Remove a user from the queue.
+    `!join` - Add yourself to the queue.
+    `!leave` - Remove yourself from the queue.
     `!react @User` - React on behalf of a user.
     `!clear` - Clear all queues.
 
@@ -181,7 +216,6 @@ async def custom_help(ctx):
     `!incidents` - Get active incidents (emails).
     `!search "question"` - Ask a question and get internal documentation answers.
     `!teach "text"` - Suggest content for the search.
-    `!teach_update` - Update suggestion list (Only TLs can approve suggestions). 
     `!db_update` - Updates the Database Backend if changes to Search Files have been made.
 
     __Other:__
@@ -240,6 +274,29 @@ async def on_reaction_add(reaction, user):
                 log_feedback(user, reaction.message, "positive_feedback.json")
             elif str(reaction.emoji) == "👎":
                 log_feedback(user, reaction.message, "negative_feedback.json")
+
+    elif reaction.message.channel.name == "additions":
+        guild = bot.guilds[0]
+        channel = discord.utils.get(guild.text_channels, name="additions")
+        if reaction.message.author == bot.user:
+            if str(reaction.emoji) == "👍" and not suggestion_recorded(reaction.message.id):
+                filepath = "LLM_Files/additions.json"
+                if os.path.exists(filepath):
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        additions = json.load(f)
+                else:
+                    additions = []
+                additions.append(reaction.message.content[57:].strip())
+                with open(filepath, "w", encoding="utf-8") as f:
+                    json.dump(additions, f, indent=4, ensure_ascii=False)
+                try:
+                    track_suggestions(reaction.message)
+                    update_doc("LLM_Files/additions.json")
+                    await channel.send("Teach file has been updated")
+                except Exception as e:
+                    await channel.send(f"Upload failed: {e}")
+            elif str(reaction.emoji) == "👎" and not suggestion_recorded(reaction.message.id):
+                await reaction.message.delete();
 
 # When the bot comes online all daily commands a run and the queue is loaded from the JSON File 
 @bot.event
