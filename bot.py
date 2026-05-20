@@ -37,6 +37,7 @@ bot = commands.Bot(command_prefix="!", intents=intents,help_command=None)
 
 import os
 
+# Folder to store message ID's of already recorded suggestions to prevent duplicates
 def track_suggestions(message):
     os.makedirs(DATA_FOLDER, exist_ok=True)
     filepath = os.path.join(DATA_FOLDER, "track_suggestions.json")
@@ -57,6 +58,7 @@ def track_suggestions(message):
     with open(filepath, "w") as f:
         json.dump(data, f, indent=2)
 
+# Loads the message ID's of already recorded suggestions
 def load_suggestions():
     filepath = os.path.join(DATA_FOLDER, "track_suggestions.json")
     if not os.path.exists(filepath):
@@ -69,6 +71,7 @@ def load_suggestions():
             data = [json.loads(line) for line in f if line.strip()]
     return data
 
+# Checks if a suggestion has already been recorded based on its message ID to prevent duplicates
 def suggestion_recorded(message_id):
     return message_id in load_suggestions()
 
