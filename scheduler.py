@@ -1,11 +1,9 @@
 import os
 import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import json
+from zoneinfo import ZoneInfo
 
 import discord
-from discord.ext import tasks
-import requests
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -19,16 +17,29 @@ from googleapiclient.errors import HttpError
 from servicenow import get_access_token, incident_query
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 
-SAMPLE_SPREADSHEET_ID = "1jhAGP9f5k5g5kjfDCwiJiLWZLg0xuJb18dF1t34PXR8"
-SAMPLE_RANGE_NAME = "Times"
+CALENDAR_ID = "oldhelpdesk@etal.uri.edu"
+TIMEZONE = "America/New_York"
+
+DAY_MAP = {
+    0: "mon",
+    1: "tue",
+    2: "wed",
+    3: "thu",
+    4: "fri",
+    5: "sat",
+    6: "sun",
+}
+
+VALID_COMMANDS = {
+    "email_check"
+}
+
+DEFAULT_CHANNEL = "jabber-shift-chat"
 
 def get_values():
-    """
-    Shows basic usage of the Sheets API.
-    Prints values from a sample spreadsheet.
-    """
+    """Reads upcoming Calendar events and converts them to scheduler entries."""
     creds = None
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
@@ -45,17 +56,75 @@ def get_values():
             token.write(creds.to_json())
 
     try:
-        service = build("sheets", "v4", credentials=creds)
-        sheet = service.spreadsheets()
-        result = sheet.values().get(
-            spreadsheetId=SAMPLE_SPREADSHEET_ID,
-            range=SAMPLE_RANGE_NAME
+        service = build("calendar", "v3", credentials=creds)
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        end = now + datetime.timedelta(days=4)
+
+        result = service.events().list(
+            calendarId=CALENDAR_ID,
+            timeMin=now.isoformat(),
+            timeMax=end.isoformat(),
+            singleEvents=True,
+            orderBy="startTime",
         ).execute()
-        values = result.get("values", [])
-        if not values:
+
+        events = result.get("items", [])
+        if not events:
             print("No data found.")
-            return
-        return values
+            return []
+
+        entries = []
+        seen_commands = set()
+        for event in events:
+            command_name = event.get("summary", "").strip()
+
+            start = event.get("start", {})
+            start_text = start.get("dateTime")
+            if not start_text:
+                continue
+
+            event_time = datetime.datetime.fromisoformat(start_text.replace("Z", "+00:00"))
+            event_time = event_time.astimezone(ZoneInfo(TIMEZONE))
+
+            day = DAY_MAP[event_time.weekday()]
+            hour = event_time.hour
+            minute = event_time.minute
+
+            if command_name not in VALID_COMMANDS:
+                message = event.get("description", "").strip()
+                channel_name = event.get("location", "").strip().lstrip("#") or DEFAULT_CHANNEL
+                if not message:
+                    continue
+
+                command_key = ("custom_message", day, hour, minute, message, channel_name)
+                if command_key in seen_commands:
+                    continue
+
+                seen_commands.add(command_key)
+                entries.append({
+                    "command_name": "custom_message",
+                    "day": day,
+                    "hour": hour,
+                    "minute": minute,
+                    "message": message,
+                    "channel_name": channel_name,
+                })
+                continue
+
+            command_key = (command_name, day, hour, minute)
+            if command_key in seen_commands:
+                continue
+
+            seen_commands.add(command_key)
+            entries.append({
+                "command_name": command_name,
+                "day": day,
+                "hour": hour,
+                "minute": minute,
+            })
+
+        return entries
     except HttpError as err:
         print(err)
         return None
@@ -74,40 +143,6 @@ async def purge_channel(bot):
     # Rebuild the daily commands schedule with fresh data
     await daily_commands(bot)
 
-async def printer_check(bot):
-    """Sends a message in #printer-checks to remind about checking printers."""
-    guild = bot.guilds[0]
-    channel = discord.utils.get(guild.text_channels, name="jabber-shift-chat")
-    await channel.send("Please check the printers")
-
-
-async def schedule_printer_check(bot, scheduler, days, times, enabled):
-    """Schedules printer checks for the given days/times if enabled."""
-    days = days.split(",")
-    times = times.split(",")
-    times = [float(time) for time in times]
-
-    if enabled == "FALSE":
-        print("Printer Checks Not Scheduled")
-    else:
-        for day in days:
-            for t in times:
-                minutes = 0
-                if t % 1 != 0:
-                    minutes = int((t % 1) * 60)
-                hour = int(t)
-                scheduler.add_job(
-                    printer_check,
-                    'cron',
-                    day_of_week=day,
-                    hour=hour,
-                    minute=minutes,
-                    misfire_grace_time=60,
-                    args=[bot]
-                )
-        print("Printer Checks Scheduled")
-
-
 async def get_incidents(bot):
     inc_num = incident_query(get_access_token())
     guild = bot.guilds[0]
@@ -115,31 +150,40 @@ async def get_incidents(bot):
     await channel.send(f"We have {inc_num} new emails")
 
 
-async def schedule_get_incidents(bot, scheduler, days, times, enabled):
-    """Schedules incident-check jobs for the given days/times if enabled."""
-    days = days.split(",")
-    times = times.split(",")
-    times = [float(time) for time in times]
+async def send_custom_message(bot, message, channel_name = DEFAULT_CHANNEL):
+    guild = bot.guilds[0]
+    channel_name = channel_name.strip().lstrip("#") or DEFAULT_CHANNEL
+    channel = discord.utils.get(guild.text_channels, name=channel_name)
+    if channel is None:
+        channel = discord.utils.get(guild.text_channels, name=DEFAULT_CHANNEL)
+    await channel.send(message)
 
-    if enabled == "FALSE":
-        print("Incidents Not Scheduled")
-    else:
-        for day in days:
-            for t in times:
-                minutes = 0
-                if t % 1 != 0:
-                    minutes = int((t % 1) * 60)
-                hour = int(t)
-                scheduler.add_job(
-                    get_incidents,
-                    'cron',
-                    day_of_week=day,
-                    hour=hour,
-                    minute=minutes,
-                    misfire_grace_time=60,
-                    args=[bot]
-                )
-        print("Incidents Scheduled")
+
+async def schedule_get_incidents(bot, scheduler, day, hour, minute):
+    """Schedules an incident-check job for one Calendar event."""
+    scheduler.add_job(
+        get_incidents,
+        'cron',
+        day_of_week=day,
+        hour=hour,
+        minute=minute,
+        misfire_grace_time=60,
+        args=[bot]
+    )
+    print("Incident Scheduled")
+
+
+async def schedule_custom_message(bot, scheduler, day, hour, minute, message, channel_name):
+    """Schedules a custom Calendar-description message."""
+    scheduler.add_job(
+        send_custom_message,
+        'cron',
+        day_of_week=day,
+        hour=hour,
+        minute=minute,
+        misfire_grace_time=60,
+        args=[bot, message, channel_name]
+    )
 
 async def schedule_daily_purge(bot, scheduler):
     """Schedules a daily purge of the #jabber-shift-chat channel at 12:01 AM."""
@@ -151,8 +195,8 @@ async def daily_commands(bot):
     This function:
     - Grabs or creates the single scheduler stored on the bot.
     - Removes all old jobs (so the schedule is 'reset').
-    - Reads the Google Sheet for new times and schedules them.
-    - Schedules the daily purge & 30-min refresh.
+    - Reads Google Calendar for new times and schedules them.
+    - Schedules the daily purge.
     """
     # Check if we already have a scheduler on the bot
     scheduler = getattr(bot, "scheduler", None)
@@ -166,22 +210,32 @@ async def daily_commands(bot):
         if scheduler.running:
             scheduler.remove_all_jobs()
 
-    # Fetch times from Google
-    values = get_values()
-    if values:
-        times = values[1:]  # Skip header row if present
-    else:
-        times = []
+    # Fetch scheduled entries from Google Calendar
+    entries = get_values() or []
 
-    # Schedule each command from the sheet
-    for row in times:
-        enabled, command_name, days, times_str = row[0], row[1], row[2], row[3]
-        if command_name == "printer_checks":
-            await schedule_printer_check(bot, scheduler, days, times_str, enabled)
-        elif command_name in ["email_check_weekly", "email_check_friday", "email_check_weekend"]:
-            await schedule_get_incidents(bot, scheduler, days, times_str, enabled)
+    # Schedule each command from the calendar
+    for entry in entries:
+        command_name = entry["command_name"]
+        if command_name == 'email_check':
+            await schedule_get_incidents(
+                bot,
+                scheduler,
+                entry["day"],
+                entry["hour"],
+                entry["minute"],
+            )
+        elif command_name == "custom_message":
+            await schedule_custom_message(
+                bot,
+                scheduler,
+                entry["day"],
+                entry["hour"],
+                entry["minute"],
+                entry["message"],
+                entry["channel_name"],
+            )
         else:
-            print("Invalid command from time sheet:", command_name)
+            print("Invalid command from calendar:", command_name)
 
     await schedule_daily_purge(bot, scheduler)
     
