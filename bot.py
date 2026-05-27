@@ -1,4 +1,5 @@
 from email.mime import message
+import asyncio
 import discord
 from discord import reaction
 from discord.ext import commands
@@ -176,9 +177,9 @@ async def incidents(ctx):
 async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
-        response = ask_anythingllm(question)
-        response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
-    await ctx.reply(response)
+        response = await asyncio.to_thread(ask_anythingllm, question)
+    response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+    await ctx.send(response)
 
 # Reloads the times for the bot to run the daily commands
 # Ex. !reload_times will reload the times for the bot to run the daily commands
@@ -235,7 +236,7 @@ async def on_message(message):
     if message.channel.type == discord.ChannelType.private:
         async with message.channel.typing():
             try:
-                response = ask_anythingllm(message.content)
+                response = await asyncio.to_thread(ask_anythingllm, message.content)
                 await message.channel.send(response)
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
