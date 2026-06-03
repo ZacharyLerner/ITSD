@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import os
 
 instance = os.getenv("instance")
-BASE_URL = BASE_URL = f"https://{instance}.service-now.com"
+BASE_URL = f"https://{instance}.service-now.com"
 
 USERNAME = os.getenv("SN_USERNAME")
 CLIENT_ID = os.getenv("CLIENT_ID")
@@ -71,7 +71,7 @@ def update_access_token(srv_token={}):
     log.debug(new_token)
     with open(TOKEN_FILE, "w") as fh:
         new_token["expires_at"] = (
-            datetime.now() + timedelta(0, srv_token["expires_in"])
+            datetime.now() + timedelta(0, new_token["expires_in"])
         ).isoformat()
         fh.write(dumps(new_token))
 
