@@ -164,8 +164,11 @@ async def update(ctx):
 
 @bot.command(name= "newsletter")
 async def write_newsletter(ctx):
-    message = write_newsletter_managed()
-    await write_newsletter_scheduled(bot, message)
+    try:
+        message = write_newsletter_managed()
+        await write_newsletter_scheduled(bot, message)
+    except Exception as e:
+        await ctx.reply(f"Newsletter generation failed: {e}")
 
 @bot.command(name = 'help')
 async def custom_help(ctx):
