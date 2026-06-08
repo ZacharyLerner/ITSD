@@ -150,7 +150,7 @@ def get_access_token(force_renew=False):
 
         with open(TOKEN_FILE, "w") as fh:
             srv_token["expires_at"] = (
-                datetime.now() + timedelta(0, new_token["expires_in"])
+                datetime.now() + timedelta(0, srv_token["expires_in"])
             ).isoformat()
             fh.write(dumps(srv_token))
 
