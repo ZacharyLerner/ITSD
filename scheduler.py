@@ -1,7 +1,6 @@
 import os
 import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from suggestionWritter import check_values, get_length_values
 import json
 
 import discord
@@ -61,25 +60,6 @@ def get_values():
         print(err)
         return None
     
-def write_suggested_values():
-  values = check_values()
-  
-  suggestions = []
-  for value in values:
-      suggestions.append(value[2])
-
-  print(suggestions)
-  current_values = []
-  # get current values from additions.json
-  with open('LLM_Files/additions.json', 'r', encoding='utf-8') as f:
-    current_values = json.load(f)
-
-  current_values.extend(suggestions)
-
-  # Write the extracted suggestions to a JSON file in the formattedFiles directory
-  output_dir = 'LLM_Files'
-  with open(os.path.join(output_dir, 'additions.json'), 'w', encoding='utf-8') as its_file:
-    json.dump(current_values, its_file, indent=4, ensure_ascii=False)
 
 async def purge_channel(bot):
     """
@@ -93,18 +73,6 @@ async def purge_channel(bot):
 
     # Rebuild the daily commands schedule with fresh data
     await daily_commands(bot)
-
-async def check_search_add(bot):
-    num_check_add  = get_length_values()
-    guild = bot.guilds[0]
-    channel = discord.utils.get(guild.text_channels, name="jabber-shift-chat")
-    if num_check_add != 0:
-        await channel.send(f"Team Leaders: We have {num_check_add} new suggestions to add to the search engine.")
-
-async def schedule_check_search_add(bot, scheduler):
-    """Schedules a check for new suggestions every day at 8:01 AM."""
-    scheduler.add_job(check_search_add, 'cron', hour=8, minute=1, misfire_grace_time=60, args=[bot])
-
 
 async def printer_check(bot):
     """Sends a message in #printer-checks to remind about checking printers."""
@@ -184,7 +152,6 @@ async def schedule_daily_purge(bot, scheduler):
     print("Purge Scheduled")
     scheduler.add_job(purge_channel, 'cron', hour=0, minute=1, misfire_grace_time=60, args=[bot])
 
-
 async def daily_commands(bot):
     """
     This function:
@@ -223,9 +190,7 @@ async def daily_commands(bot):
             print("Invalid command from time sheet:", command_name)
 
     await schedule_daily_purge(bot, scheduler)
-    await schedule_check_search_add(bot, scheduler)
-    write_suggested_values()
-
+    
     # If the scheduler wasn't started yet, start it
     if not scheduler.running:
         scheduler.start()
