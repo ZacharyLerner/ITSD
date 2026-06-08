@@ -79,32 +79,23 @@ def write_newsletter_managed():
     MODEL = os.getenv("ITSD_DEV_MODEL_OPUS")
     API_KEY = os.getenv("ITSD_DEV_API_KEY")
 
-    if not os.path.exists(jabber_filename) or os.path.getsize(jabber_filename) == 0:
-        jabber_json = []
-    else:
-        with open(jabber_filename, 'r') as file:
-            try:
-                jabber_json = json.load(file)
-            except json.JSONDecodeError:
-                jabber_json = []
+    with open(jabber_filename, 'r') as file:
+        try:
+            jabber_json = json.load(file)
+        except json.JSONDecodeError:
+            jabber_json = []
 
-    if not os.path.exists(sn_filename) or os.path.getsize(sn_filename) == 0:
-        sn_json = []
-    else:
-        with open(sn_filename, 'r') as file:
-            try:
-                sn_json = json.load(file)
-            except json.JSONDecodeError:
-                sn_json = []
+    with open(sn_filename, 'r') as file:
+        try:
+            sn_json = json.load(file)
+        except json.JSONDecodeError:
+            sn_json = []
 
-    if not os.path.exists(professional_filename) or os.path.getsize(professional_filename) == 0:
-        professional_json = []
-    else:
-        with open(professional_filename, 'r') as file:
-            try:
-                professional_json = json.load(file)
-            except json.JSONDecodeError:
-                professional_json = []
+    with open(professional_filename, 'r') as file:
+        try:
+            professional_json = json.load(file)
+        except json.JSONDecodeError:
+            professional_json = []
 
     return _create_weekly_newsletter(API_BASE, MODEL, API_KEY, jabber_json, sn_json, professional_json)
 
