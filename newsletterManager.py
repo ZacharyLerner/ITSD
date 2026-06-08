@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+import litellm
 import json
 
 from prompts import Newsletter_System_Prompt, Message_System_Prompt, Ticket_System_Prompt
