@@ -34,7 +34,12 @@ def ask_anythingllm(question):
 
         response_data = response.json()
 
-        sources = response_data.get('sources', [])
+        # sources is {"documents": [...], "web": [...]} — extract the documents list
+        raw_sources = response_data.get('sources', [])
+        if isinstance(raw_sources, dict):
+            sources = raw_sources.get('documents', [])
+        else:
+            sources = raw_sources  # backwards compat if format ever reverts
 
         source_text = ""
         for source in sources:

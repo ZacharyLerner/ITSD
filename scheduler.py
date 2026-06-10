@@ -150,6 +150,12 @@ async def get_incidents(bot):
     await channel.send(f"We have {inc_num} new emails")
 
 
+async def write_newsletter_scheduled(bot, message):
+    guild = bot.guilds[0]
+    channel = discord.utils.get(guild.text_channels, name="newsletter")
+    await channel.send(message)
+
+
 async def send_custom_message(bot, message, channel_name = DEFAULT_CHANNEL):
     guild = bot.guilds[0]
     channel_name = channel_name.strip().lstrip("#") or DEFAULT_CHANNEL
