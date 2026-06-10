@@ -290,7 +290,6 @@ async def on_message(message):
     # DMs → AnythingLLM
     if message.channel.type == discord.ChannelType.private:
         async with message.channel.typing():
-            await message.channel.send(response)
             try:
                 response = await asyncio.to_thread(ask_anythingllm, message.content)
                 await message.channel.send(response)
