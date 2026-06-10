@@ -242,7 +242,7 @@ async def custom_help(ctx):
     **Available Commands**
 
     __General Queue Commands:__
-    `!queue` - Show the current queue.
+    `!queue` or `!q` - Show the current queue.
     `!add @User` - Add a user to the queue.
     `!remove @User` - Remove a user from the queue.
     `!join` - Add yourself to the queue.
@@ -262,7 +262,6 @@ async def custom_help(ctx):
     `!db_update` - Updates the Database Backend if changes to Search Files have been made.
 
     __Other:__
-    `!create_json` - Create JSON files from formatted data if KBs are out of date
     `!help` - Display this help message.
     `!events_help` - Get information on scheduling events.
 
