@@ -205,7 +205,7 @@ async def events_help(ctx):
     
     __If you are making a custom event:__
     The event description will be the text sent out (ex. "Check printers")
-    The event location will be the channel the message is sent in (ex. jabber-shift-chat)
+    The event location will be the channel the message is sent in (ex. jabber-shift-chat) (leave blank for jabber-shift-chat)
     The date and time is when the event will be scheduled (ex. every Monday at 9:30am)
     
     __If you are scheduling a pre made event that requires custom logic:__
