@@ -2,7 +2,7 @@ import os
 import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from zoneinfo import ZoneInfo
-
+from servicenow import reuploadAll
 import discord
 
 from dotenv import load_dotenv
@@ -33,7 +33,8 @@ DAY_MAP = {
 }
 
 VALID_COMMANDS = {
-    "email_check"
+    "email_check",
+    "reupload_docs"
 }
 
 DEFAULT_CHANNEL = "jabber-shift-chat"
@@ -178,6 +179,18 @@ async def schedule_get_incidents(bot, scheduler, day, hour, minute):
     )
     print("Incident Scheduled")
 
+async def schedule_reupload_docs(scheduler, day, hour, minute):
+    """Schedules a document reupload job"""
+    scheduler.add_job(
+        reuploadAll,
+        'cron',
+        day_of_week=day,
+        hour=hour,
+        minute=minute,
+        misfire_grace_time=60
+    )
+    print("docs reuploaded")
+
 
 async def schedule_custom_message(bot, scheduler, day, hour, minute, message, channel_name):
     """Schedules a custom Calendar-description message."""
@@ -230,6 +243,14 @@ async def daily_commands(bot):
                 entry["hour"],
                 entry["minute"],
             )
+        elif command_name == 'reupload_docs':
+            await schedule_reupload_docs(
+                scheduler,
+                entry["day"],
+                entry["hour"],
+                entry["minute"],
+            )
+            print("Reupload Scheduled")
         elif command_name == "custom_message":
             await schedule_custom_message(
                 bot,

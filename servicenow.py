@@ -7,9 +7,12 @@ import getpass
 
 from dotenv import load_dotenv
 import os
+import LLM_Upload_Manager as llm_upload_manager
+
+load_dotenv()
 
 instance = os.getenv("instance")
-BASE_URL = BASE_URL = f"https://{instance}.service-now.com"
+BASE_URL = f"https://{instance}.service-now.com"
 
 USERNAME = os.getenv("SN_USERNAME")
 CLIENT_ID = os.getenv("CLIENT_ID")
@@ -20,6 +23,13 @@ import logging as log
 log.basicConfig(format="%(levelname)s:%(message)s", level=log.ERROR)
 
 TOKEN_FILE = "refresh.token"
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+LLM_FILES_FOLDER = os.path.join(BASE_DIR, "LLM_Files")
+KB_SUMMARY_FOLDER = os.path.join(LLM_FILES_FOLDER, "kb_docs")
+KB_CONTENT_FOLDER = os.path.join(LLM_FILES_FOLDER, "kb_docs_with_content")
+KB_DOC_FOLDERS = (KB_SUMMARY_FOLDER,)
+
+llm_upload_manager.LOCATIONS_FILE = os.path.join(BASE_DIR, "document_locations.json")
 
 
 def update_access_token(srv_token={}):
@@ -71,7 +81,7 @@ def update_access_token(srv_token={}):
     log.debug(new_token)
     with open(TOKEN_FILE, "w") as fh:
         new_token["expires_at"] = (
-            datetime.now() + timedelta(0, srv_token["expires_in"])
+            datetime.now() + timedelta(0, new_token["expires_in"])
         ).isoformat()
         fh.write(dumps(new_token))
 
@@ -216,30 +226,98 @@ def incident_query(access_token, one_shot=False):
         return f"Incident query unable to complete, server responded {response.status_code}"
 
 
-def get_kb(subcategory, access_token):
-    url = (
-        f"https://{instance}.service-now.com/api/now/table/kb_knowledge"
-        f"?sysparm_query=kb_knowledge_base=dfc19531bf2021003f07e2c1ac0739ab"
-        f"^kb_category={subcategory}&sysparm_limit=200"
-    )
-
+def get_kb_category_children(category_id, access_token, one_shot=False):
+    url = f"{BASE_URL}/api/now/table/kb_category"
+    query_params = {
+        "sysparm_query": f"parent_id={category_id}^active=true",
+        "sysparm_limit": 200,
+        "sysparm_fields": "sys_id,label,parent_id",
+    }
     headers = {"Accept": "application/json", "Authorization": f"Bearer {access_token}"}
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, params=query_params, headers=headers)
     if response.status_code == 200:
         data = response.json()
         return data.get("result", [])
+    elif response.status_code == 401 and not one_shot:
+        new_access_token = get_access_token(force_renew=True)
+        if not new_access_token:
+            log.error(f"Category query failed: unable to refresh access token for {category_id}")
+            return []
+
+        return get_kb_category_children(category_id, new_access_token, one_shot=True)
+
     else:
-        print(f"Error fetching KBs for subcategory {subcategory}: {response.text}")
+        log.error(f"Error fetching child KB categories for {category_id}: {response.text}")
         return []
 
+
+def get_kb_category_tree(category_id, access_token):
+    category_ids = [category_id]
+    seen_category_ids = {category_id}
+    pending_category_ids = [category_id]
+
+    while pending_category_ids:
+        parent_id = pending_category_ids.pop()
+        for child in get_kb_category_children(parent_id, access_token):
+            child_id = child.get("sys_id")
+            if child_id and child_id not in seen_category_ids:
+                seen_category_ids.add(child_id)
+                category_ids.append(child_id)
+                pending_category_ids.append(child_id)
+
+    return category_ids
+
+
+def get_kb(subcategory, access_token, one_shot=False):
+    url = f"{BASE_URL}/api/now/table/kb_knowledge"
+    category_ids = get_kb_category_tree(subcategory, access_token)
+    category_ids = [
+        category_id
+        for category_id in category_ids if category_id != "42d53f95c350b250e6922b8dc00131cd"
+    ]
+    query = (
+        "kb_knowledge_base=dfc19531bf2021003f07e2c1ac0739ab"
+        f"^kb_categoryIN{','.join(category_ids)}"
+        "^latest=true"
+        "^workflow_state=published"
+        "^active=true"
+    )
+    query_params = {
+        "sysparm_query": query,
+        "sysparm_limit": 200,
+        "sysparm_fields": (
+            "number,short_description,meta_description,text,sys_id,"
+            "kb_category,latest,workflow_state,active"
+        ),
+    }
+
+    headers = {"Accept": "application/json", "Authorization": f"Bearer {access_token}"}
+
+    response = requests.get(url, params=query_params, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("result", [])
+    elif response.status_code == 401 and not one_shot:
+        new_access_token = get_access_token(force_renew=True)
+        if not new_access_token:
+            log.error(f"KB query failed: unable to refresh access token for {subcategory}")
+            return []
+        
+        return get_kb(subcategory, new_access_token, one_shot=True)
+
+    else:
+        log.error(f"Error fetching KBs for subcategory {subcategory}: {response.text}")
+        return []
+    
 
 # Function to gather docs for a list of subcategory ids
 def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
     if seen_texts is None:
         seen_texts = set()
 
-    gathered = []
+    os.makedirs(KB_SUMMARY_FOLDER, exist_ok=True)
+    os.makedirs(KB_CONTENT_FOLDER, exist_ok=True)
 
     for subcategory_id in subcategory_ids:
         try:
@@ -254,13 +332,173 @@ def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
             short_desc = record.get("short_description", "").strip()
             meta_desc = record.get("meta_description", "").strip()
             text_key = (short_desc.lower(), meta_desc.lower())
+            article_content = record.get("text", "").strip()
 
             if text_key not in seen_texts:
                 seen_texts.add(text_key)
                 display_number = record.get("number", "")
                 link = f"https://{instance}.service-now.com/kb?id=kb_article_view&sysparm_article={display_number}"
-                combined_text = f"{short_desc} {meta_desc}. LINK: {link}"
-                combined_text = re.sub(r",", "", combined_text)
-                gathered.append(combined_text)
 
-    return gathered
+                safe_name = display_number or record.get("sys_id", "unknown")
+
+                summary_doc = {
+                    "number": display_number,
+                    "short_description": short_desc,
+                    "meta_description": meta_desc,
+                    "link": link,
+                }
+
+                content_doc = {
+                    "number": display_number,
+                    "short_description": short_desc,
+                    "meta_description": meta_desc,
+                    "link": link,
+                    "content": article_content,
+                }
+
+                summary_path = os.path.join(KB_SUMMARY_FOLDER, f"{safe_name}.json")
+                content_path = os.path.join(KB_CONTENT_FOLDER, f"{safe_name}.json")
+
+                with open(summary_path, "w", encoding="utf-8") as f:
+                    f.write(dumps(summary_doc, indent=2, ensure_ascii=False))
+
+                with open(content_path, "w", encoding="utf-8") as f:
+                    f.write(dumps(content_doc, indent=2, ensure_ascii=False))
+
+    return
+
+def get_all_docs():
+    gather_docs(["1c022b1683da861095c6e6d0deaad350"]) # Accounts and Access
+    gather_docs(["a559edc74720ced0d544d698436d439e"]) # Communication and Collaboration
+    gather_docs(["ee3ff96147786d1021080678436d43eb"]) # Help and Support
+    gather_docs(["6521302197f0ba106cf6347e6253afdc"]) # Learning and Development
+    gather_docs(["2bde140597c64650917fbf98c253af74"]) # Network and Connectivity
+    gather_docs(["8eacc63c975eda50917fbf98c253af37"]) # Security and Privacy
+    gather_docs(["152fb96147786d1021080678436d4314"]) # Software and Applications
+    gather_docs(["a8fbdbcc470d0a1021080678436d4359"]) # Student Life
+
+
+def _kb_doc_paths():
+    doc_paths = []
+    for folder in KB_DOC_FOLDERS:
+        if not os.path.isdir(folder):
+            continue
+
+        for file_name in sorted(os.listdir(folder)):
+            file_path = os.path.join(folder, file_name)
+            if os.path.isfile(file_path) and file_name.endswith(".json"):
+                doc_paths.append(file_path)
+
+    return doc_paths
+
+
+def _candidate_absolute_paths(file_name):
+    if os.path.isabs(file_name):
+        return {os.path.abspath(file_name)}
+
+    return {
+        os.path.abspath(file_name),
+        os.path.abspath(os.path.join(BASE_DIR, file_name)),
+    }
+
+
+def _is_kb_doc_path(file_name):
+    candidate_paths = _candidate_absolute_paths(file_name)
+    kb_folders = {os.path.abspath(folder) for folder in KB_DOC_FOLDERS}
+
+    for candidate_path in candidate_paths:
+        if any(os.path.dirname(candidate_path) == folder for folder in kb_folders):
+            return True
+
+    return False
+
+
+def _tracked_kb_doc_keys():
+    locations = llm_upload_manager.load_locations()
+    return [
+        file_name
+        for file_name in locations
+        if _is_kb_doc_path(file_name)
+    ]
+
+
+def _tracked_key_for_path(file_path):
+    absolute_file_path = os.path.abspath(file_path)
+
+    for file_name in _tracked_kb_doc_keys():
+        if absolute_file_path in _candidate_absolute_paths(file_name):
+            return file_name
+
+    return None
+
+
+def deleteAll():
+    results = {
+        "deleted_uploads": [],
+        "deleted_local_files": [],
+        "errors": [],
+    }
+
+    for file_name in _tracked_kb_doc_keys():
+        try:
+            response = llm_upload_manager.full_delete(file_name)
+            if "error" in response:
+                results["errors"].append({"file": file_name, "error": response["error"]})
+            else:
+                results["deleted_uploads"].append(file_name)
+        except Exception as e:
+            results["errors"].append({"file": file_name, "error": str(e)})
+
+    for file_path in _kb_doc_paths():
+        try:
+            os.remove(file_path)
+            results["deleted_local_files"].append(file_path)
+        except OSError as e:
+            results["errors"].append({"file": file_path, "error": str(e)})
+
+    return results
+
+def uploadAll():
+    results = {
+        "uploaded": [],
+        "errors": [],
+    }
+
+    for file_path in _kb_doc_paths():
+        tracked_key = _tracked_key_for_path(file_path)
+        if tracked_key:
+            try:
+                delete_response = llm_upload_manager.full_delete(tracked_key)
+                if "error" in delete_response:
+                    results["errors"].append({
+                        "file": tracked_key,
+                        "error": delete_response["error"],
+                    })
+                    continue
+            except Exception as e:
+                results["errors"].append({"file": tracked_key, "error": str(e)})
+                continue
+
+        try:
+            response = llm_upload_manager.full_upload(file_path)
+            results["uploaded"].append({
+                "file": file_path,
+                "response": response,
+            })
+        except Exception as e:
+            results["errors"].append({"file": file_path, "error": str(e)})
+
+    return results
+
+
+def reuploadAll():
+    delete_result = deleteAll()
+    get_all_docs()
+    upload_result = uploadAll()
+
+    return {
+        "delete": delete_result,
+        "upload": upload_result,
+    }
+    
+

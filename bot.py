@@ -196,6 +196,29 @@ async def suggest(ctx, *, suggestion):
     await write_values(suggestion)
     await ctx.reply("Suggestion has been recorded")
 
+@bot.command(name= "events_help")
+async def events_help(ctx):
+    help_text = """
+    **Scheduling Events with the ITSD Bot**
+    Visit the following google calendar to view / schedule events: https://calendar.google.com/calendar/u/0/r?cid=b2xkaGVscGRlc2tAZXRhbC51cmkuZWR1
+    
+    __If you are making a custom event:__
+    The event description will be the text sent out (ex. "Check printers")
+    The event location will be the channel the message is sent in (ex. #jabber-shift-chat)
+    The date and time is when the event will be scheduled (ex. every Monday at 9:30am)
+    
+    __If you are scheduling a pre made event that requires custom logic:__
+    All you need is the event name and the scheduled time.
+    The event name must be exactly the same as the pre made event name.
+
+    **Available pre made events names for Scheduling**
+
+    `email_check` - Schedules a daily check for new emails/incidents and posts the number of new emails in the #jabber-shift-chat channel.
+
+    `reupload_docs` - Schedules a weekly reupload of all documents to the LLM backend to ensure the most up to date information is being used. This is especially important if there have been recent changes to KB articles or other internal documentation.
+    """
+    await ctx.send(help_text)
+
 @bot.command(name= "newsletter")
 async def write_newsletter(ctx):
     try:
@@ -219,7 +242,7 @@ async def custom_help(ctx):
     **Available Commands**
 
     __General Queue Commands:__
-    `!queue` - Show the current queue.
+    `!queue` or `!q` - Show the current queue.
     `!add @User` - Add a user to the queue.
     `!remove @User` - Remove a user from the queue.
     `!join` - Add yourself to the queue.
@@ -239,8 +262,8 @@ async def custom_help(ctx):
     `!db_update` - Updates the Database Backend if changes to Search Files have been made.
 
     __Other:__
-    `!create_json` - Create JSON files from formatted data if KBs are out of date
     `!help` - Display this help message.
+    `!events_help` - Get information on scheduling events.
 
     *You can also DM the bot with ITSD questions and it will reply with answers from the internal search engine.*
     """
