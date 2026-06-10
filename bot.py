@@ -181,7 +181,7 @@ async def ask_question(ctx, *, question):
     async with ctx.typing():
         response = await asyncio.to_thread(ask_anythingllm, question)
     response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
-    await ctx.send(response)
+    await ctx.reply(response)
 
 # Reloads the times for the bot to run the daily commands
 # Ex. !reload_times will reload the times for the bot to run the daily commands
@@ -281,18 +281,50 @@ async def custom_help(ctx):
     """
     await ctx.send(help_text)
     
+
 # Make it so that if anyone direct messages the bot it will respond with a message
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
     
+    if message.reference and message.reference.message_id:
+        replied_message = message.reference.resolved
+
+        if replied_message is None:
+                replied_message = await message.channel.fetch_message(
+                    message.reference.message_id
+                )
+
+        if "This response was generated with AI Assistance" in replied_message.content:
+            old_message = None
+            if replied_message.reference and replied_message.reference.message_id:
+                old_message = replied_message.reference.resolved
+                if old_message is None:
+                        old_message = await message.channel.fetch_message(
+                            replied_message.reference.message_id
+                        )
+
+            if replied_message.author == bot.user:
+                user_question_old = old_message.content if old_message else ""
+                bot_message = replied_message.content
+                context = "Here is the previous context of the conversation:\n User Previous Question: " + user_question_old + "\nAI Response: " + bot_message + "\n User current response / question: " + message.content + "DO NOT INCLUDE THE AI GENERATED MESSAGE. THAT IS ALREADY ADDED."
+                async with message.channel.typing():
+                    try:
+                        response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        if "This response was generated with AI Assistance." not in response:
+                            response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        await message.reply(response)
+                    except Exception as e:
+                        await message.channel.send(f"Error: {e}")
+                return
+
     # DMs → AnythingLLM
     if message.channel.type == discord.ChannelType.private:
         async with message.channel.typing():
             try:
                 response = await asyncio.to_thread(ask_anythingllm, message.content)
-                await message.channel.send(response)
+                await message.reply(response)
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
         return
