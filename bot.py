@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import json
 from datetime import datetime
+from servicenow import reuploadAll
 
 # Load the .env file to get the Discord Token and OpenAI API Key
 load_dotenv()
@@ -219,6 +220,16 @@ async def events_help(ctx):
     """
     await ctx.send(help_text)
 
+@bot.command(name = "docs_upload")
+async def docs_upload(ctx):
+    try:
+        await ctx.reply("Uploading documents... This may take a few minutes.")
+        result = await asyncio.to_thread(reuploadAll)
+        await ctx.reply("Documents have been uploaded")
+    except Exception as e:
+        if str(e) != "Expecting value: line 1 column 1 (char 0)" and e != "object dict can't be used in 'await' expression":
+            await ctx.reply(f"Upload failed: {e}")
+
 @bot.command(name= "newsletter")
 async def write_newsletter(ctx):
     try:
@@ -259,6 +270,7 @@ async def custom_help(ctx):
     `!search "question"` - Ask a question and get internal documentation answers.
     `!teach "text"` - Suggest content for the search.
     `!newsletter` - Generate and post the weekly newsletter.
+    `!docs_upload` - Reupload all documents to the LLM backend immediately (instead of waiting for the scheduled weekly upload).
     `!db_update` - Updates the Database Backend if changes to Search Files have been made.
 
     __Other:__
