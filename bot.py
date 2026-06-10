@@ -200,7 +200,7 @@ async def suggest(ctx, *, suggestion):
 async def events_help(ctx):
     help_text = """
     **Scheduling Events with the ITSD Bot**
-    Visit the following google calendar to view / schedule events: https://calendar.google.com/calendar/u/0/r/month/2026/6/1?cid=b2xkaGVscGRlc2tAZXRhbC51cmkuZWR1
+    Visit the following google calendar to view / schedule events: https://calendar.google.com/calendar/u/0/r?cid=b2xkaGVscGRlc2tAZXRhbC51cmkuZWR1
     
     __If you are making a custom event:__
     The event description will be the text sent out (ex. "Check printers")
