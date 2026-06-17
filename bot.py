@@ -6,7 +6,7 @@ from discord.ext import commands
 import os 
 from dotenv import load_dotenv
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from servicenow import reuploadAll
 from collections import deque
 
@@ -372,12 +372,32 @@ async def on_message(message):
             vem = []
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(vem, f, indent=4, ensure_ascii=False)
-        if message.content not in vem:
-            vem.append(message.content.strip())
+
+        new_time = message.created_at
+        if message.content not in [item["message"] for item in vem]:
+            vem.append({
+            "message": message.content.strip(),
+            "time": new_time.isoformat()
+            })
+
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(vem, f, indent=4, ensure_ascii=False)
+
         else:
-            await message.reply("This email has already been claimed!")
+            for item in vem:
+                if item["message"] == message.content:
+                    old_time = datetime.fromisoformat(item["time"])
+                    time_difference = new_time - old_time
+
+                    if time_difference < timedelta(minutes=20):
+                        await message.reply("This ticket was mentioned less than 20 minutes ago. Please make sure it isn't currently being worked on by someone else.")
+
+                    item["time"] = new_time.isoformat()
+
+                    with open(filepath, "w", encoding="utf-8") as f:
+                        json.dump(vem, f, indent=4, ensure_ascii=False)
+
+                    break
     await bot.process_commands(message)
     
 
