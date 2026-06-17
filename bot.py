@@ -292,30 +292,31 @@ async def on_message(message):
     if message.reference and message.reference.message_id:
         replied_message = message.reference.resolved
 
-        if replied_message is None:
+
+        if replied_message.author == bot.user and "AI Assistance" in replied_message.content:
+            if replied_message is None:
                 replied_message = await message.channel.fetch_message(
                     message.reference.message_id
                 )
 
-        stack = deque()
-        current_message = replied_message
-        while current_message:
-            stack.append(current_message)
-            if current_message.reference and current_message.reference.message_id:
-                reference = current_message.reference
-                next_message = reference.resolved
+            stack = deque()
+            current_message = replied_message
+            while current_message:
+                stack.append(current_message)
+                if current_message.reference and current_message.reference.message_id:
+                    reference = current_message.reference
+                    next_message = reference.resolved
 
-                if next_message is None:
-                    next_message = await message.channel.fetch_message(reference.message_id)
+                    if next_message is None:
+                        next_message = await message.channel.fetch_message(reference.message_id)
 
-                current_message = next_message
-            else:
-                current_message = None
+                    current_message = next_message
+                else:
+                    current_message = None
 
-        if replied_message.author == bot.user:
             context = "Previous conversation history to keep in mind: {"
 
-            while len(stack) > 0:
+            while len(stack) > 1:
                 user_content = stack.pop().content
                 bot_content = stack.pop().content
                 footer_start = bot_content.find("*This response was generated with AI Assistance.")
