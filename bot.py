@@ -325,7 +325,6 @@ async def on_message(message):
                 context += "\n User: " + user_content.strip() + "\n Bot: " + bot_content.strip()
 
             context += "}\n User current response / question: " + message.content
-            print(context)
             async with message.channel.typing():
                 try:
                     response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
