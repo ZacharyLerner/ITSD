@@ -363,6 +363,21 @@ async def on_message(message):
         except Exception as e:
             print(f"Ticket Classifier error: {e}")
     
+    elif message.channel.name == "vem-chat":
+        filepath = "data/vem.json"
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                vem = json.load(f)
+        else:
+            vem = []
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(vem, f, indent=4, ensure_ascii=False)
+        if message.content not in vem:
+            vem.append(message.content.strip())
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(vem, f, indent=4, ensure_ascii=False)
+        else:
+            await message.reply("This email has already been claimed!")
     await bot.process_commands(message)
     
 
