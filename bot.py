@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import json
 from datetime import datetime
 from servicenow import reuploadAll
+from collections import deque
 
 # Load the .env file to get the Discord Token and OpenAI API Key
 load_dotenv()
@@ -291,33 +292,48 @@ async def on_message(message):
     if message.reference and message.reference.message_id:
         replied_message = message.reference.resolved
 
-        if replied_message is None:
+
+        if replied_message.author == bot.user and "AI Assistance" in replied_message.content:
+            if replied_message is None:
                 replied_message = await message.channel.fetch_message(
                     message.reference.message_id
                 )
 
-        if "This response was generated with AI Assistance" in replied_message.content:
-            old_message = None
-            if replied_message.reference and replied_message.reference.message_id:
-                old_message = replied_message.reference.resolved
-                if old_message is None:
-                        old_message = await message.channel.fetch_message(
-                            replied_message.reference.message_id
-                        )
+            stack = deque()
+            current_message = replied_message
+            while current_message:
+                stack.append(current_message)
+                if current_message.reference and current_message.reference.message_id:
+                    reference = current_message.reference
+                    next_message = reference.resolved
 
-            if replied_message.author == bot.user:
-                user_question_old = old_message.content if old_message else ""
-                bot_message = replied_message.content
-                context = "Here is the previous context of the conversation:\n User Previous Question: " + user_question_old + "\nAI Response: " + bot_message + "\n User current response / question: " + message.content + "DO NOT INCLUDE THE AI GENERATED MESSAGE. THAT IS ALREADY ADDED."
-                async with message.channel.typing():
-                    try:
-                        response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
-                        if "This response was generated with AI Assistance." not in response:
-                            response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
-                        await message.reply(response)
-                    except Exception as e:
-                        await message.channel.send(f"Error: {e}")
-                return
+                    if next_message is None:
+                        next_message = await message.channel.fetch_message(reference.message_id)
+
+                    current_message = next_message
+                else:
+                    current_message = None
+
+            context = "Previous conversation history to keep in mind: {"
+
+            while len(stack) > 1:
+                user_content = stack.pop().content
+                bot_content = stack.pop().content
+                footer_start = bot_content.find("*This response was generated with AI Assistance.")
+                if footer_start != -1:
+                    bot_content = bot_content[:footer_start]
+                context += "\n User: " + user_content.strip() + "\n Bot: " + bot_content.strip()
+
+            context += "}\n User current response / question: " + message.content
+            async with message.channel.typing():
+                try:
+                    response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                    if "This response was generated with AI Assistance." not in response:
+                        response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                    await message.reply(response)
+                except Exception as e:
+                    await message.channel.send(f"Error: {e}")
+            return
 
     # DMs → AnythingLLM
     if message.channel.type == discord.ChannelType.private:
