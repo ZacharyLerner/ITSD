@@ -131,6 +131,10 @@ def get_values():
         return None
     
 
+async def delete_vem():
+    if os.path.exists("data/vem.json"):
+        os.remove("data/vem.json")
+
 async def purge_channel(bot):
     """
     Deletes all messages in the #jabber-shift-chat channel,
@@ -208,6 +212,7 @@ async def schedule_daily_purge(bot, scheduler):
     """Schedules a daily purge of the #jabber-shift-chat channel at 12:01 AM."""
     print("Purge Scheduled")
     scheduler.add_job(purge_channel, 'cron', hour=0, minute=1, misfire_grace_time=60, args=[bot])
+    scheduler.add_job(delete_vem, 'cron', hour=0, minute=1, misfire_grace_time=60)
 
 async def daily_commands(bot):
     """
