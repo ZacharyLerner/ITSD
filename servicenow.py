@@ -501,4 +501,247 @@ def reuploadAll():
         "upload": upload_result,
     }
     
+def get_ticket_emails(ticket_sys_id, access_token):
+    url = f"{BASE_URL}/api/now/table/sys_email"
+
+    query_params = {
+        "sysparm_query": f"instance={ticket_sys_id}^ORDERBYsys_created_on",
+        "sysparm_fields": "sys_created_on,type,subject,body_text,body,recipients,user",
+        "sysparm_display_value": "true",
+    }
+
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    response = requests.get(url, params=query_params, headers=headers)
+    response.raise_for_status()
+
+    return response.json().get("result", [])
+
+def get_ticket_activity(ticket_sys_id, access_token):
+    url = f"{BASE_URL}/api/now/table/sys_journal_field"
+
+    query_params = {
+        "sysparm_query": f"element_id={ticket_sys_id}^ORDERBYsys_created_on",
+        "sysparm_fields": "sys_created_on,sys_created_by,name,element,value",
+        "sysparm_display_value": "true",
+    }
+
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    response = requests.get(url, params=query_params, headers=headers)
+    response.raise_for_status()
+
+    return response.json().get("result", [])
+    
+def getTicket(ticket_number):
+    access_token = get_access_token()
+
+    url = f"{BASE_URL}/api/now/table/incident"
+    query_params = {
+        "sysparm_query": f"number={ticket_number}",
+        "sysparm_limit": 1,
+        "sysparm_display_value": "true",
+        "sysparm_fields": "sys_id,number,short_description,description,state,assigned_to,opened_by,opened_at",
+    }
+
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    response = requests.get(url, params=query_params, headers=headers)
+    data = response.json()
+    results = data.get("result", [])
+
+    if not results:
+        return None
+
+    ticket = results[0]
+    ticket_sys_id = ticket["sys_id"]
+
+    ticket["activity"] = get_ticket_activity(ticket_sys_id, access_token)
+    ticket["emails"] = get_ticket_emails(ticket_sys_id, access_token)
+    return ticket
+
+def format_ticket_for_llm(ticket):
+    title = ticket.get("short_description", "").strip()
+    description = ticket.get("description", "").strip()
+    ticket_number = ticket.get("number", "").strip()
+
+    def clean_text(text):
+        text = text or ""
+
+        text = re.sub(r"(?is)<style.*?>.*?</style>", " ", text)
+        text = re.sub(r"(?is)<script.*?>.*?</script>", " ", text)
+        text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+        text = re.sub(r"(?i)</p>|</div>|</tr>", "\n", text)
+        text = re.sub(r"<[^>]+>", " ", text)
+
+        text = text.replace("&nbsp;", " ")
+        text = text.replace("&amp;", "&")
+        text = text.replace("&quot;", '"')
+        text = text.replace("&#39;", "'")
+
+        lines = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                continue
+            if line.lower().startswith("reply from:"):
+                continue
+            lines.append(line)
+
+        return "\n".join(lines).strip()
+
+    def remove_quoted_email(text):
+        if "\nOn " in text:
+            text = text.split("\nOn ", 1)[0].strip()
+        return text.strip()
+
+    def remove_footer(text):
+        stop_markers = [
+            "About this request",
+            "About this incident",
+            "Short description:",
+            "You can view your request",
+            "You can view the incident",
+            "View incident",
+            "Thank you,",
+            "Unsubscribe",
+            "Ref:MSG",
+        ]
+
+        for marker in stop_markers:
+            if marker in text:
+                text = text.split(marker, 1)[0].strip()
+
+        return text.strip()
+
+    def extract_sent_comment(text):
+        text = clean_text(text)
+
+        # ServiceNow templates usually contain one of these before the real comment.
+        patterns = [
+            rf"A comment has been added to\s+{ticket_number}\s*:",
+            rf".+? left a comment on\s+{ticket_number}\s*:",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL)
+            if match:
+                text = text[match.end():].strip()
+                return remove_footer(text)
+
+        return ""
+
+    def dedupe_key(text):
+        text = text.lower()
+        text = re.sub(r"\s+", " ", text)
+        text = re.sub(r"[^a-z0-9]+", "", text)
+        return text
+
+    def add_message(messages, seen, created, speaker, body):
+        body = clean_text(body)
+        body = remove_quoted_email(body)
+        body = remove_footer(body)
+
+        if not body:
+            return
+
+        if body == description:
+            return
+
+        key = dedupe_key(body)
+        if not key or key in seen:
+            return
+
+        seen.add(key)
+        messages.append({
+            "created": created or "",
+            "speaker": speaker or "Unknown",
+            "body": body,
+        })
+
+    messages = []
+    seen = set()
+
+    # Include clean activity if ServiceNow provides it.
+    for item in ticket.get("activity", []):
+        element = item.get("element", "")
+        if element not in ("comments", "work_notes"):
+            continue
+
+        created = item.get("sys_created_on", "")
+        author = item.get("sys_created_by", "")
+        body = item.get("value", "")
+
+        if element == "work_notes":
+            speaker = f"Internal note ({author})" if author else "Internal note"
+        else:
+            speaker = author or "Ticket comment"
+
+        add_message(messages, seen, created, speaker, body)
+
+    for email in ticket.get("emails", []):
+        email_type = email.get("type", "")
+        subject = email.get("subject", "")
+        created = email.get("sys_created_on", "")
+        sender = email.get("user", "")
+
+        raw_body = email.get("body_text") or email.get("body") or ""
+
+        if email_type == "received":
+            speaker = f"User ({sender})" if sender else "User"
+            body = raw_body
+
+        elif email_type == "sent":
+            # Only keep sent emails that are actual comment notifications.
+            if "Comment added" not in subject:
+                continue
+
+            speaker = "IT Service Desk"
+            body = extract_sent_comment(raw_body)
+
+        else:
+            continue
+
+        add_message(messages, seen, created, speaker, body)
+
+    def sort_time(message):
+        try:
+            return datetime.strptime(message["created"], "%m/%d/%Y %I:%M:%S %p")
+        except ValueError:
+            return datetime.max
+
+    messages.sort(key=sort_time)
+
+    conversation = "\n\n".join(
+        f"{message['created']} - {message['speaker']}:\n{message['body']}"
+        for message in messages
+    )
+
+    return f"""Title:
+{title}
+
+Description:
+{description}
+
+Conversation:
+{conversation}
+"""
+
+def ticketInfo(ticket_number):
+    ticket = getTicket(ticket_number)
+    if not ticket:
+        return f"No ticket found with number {ticket_number}."
+    formatted_ticket = format_ticket_for_llm(ticket)
+    return formatted_ticket
 
