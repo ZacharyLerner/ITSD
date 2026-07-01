@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 import json
 from datetime import datetime, timedelta
-from servicenow import reuploadAll
+from servicenow import reuploadAll, ticketInfo
 from collections import deque
 
 # Load the .env file to get the Discord Token and OpenAI API Key
@@ -180,7 +180,13 @@ async def incidents(ctx):
 async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
-        response = await asyncio.to_thread(ask_anythingllm, question)
+        if "INC" in question:
+            inc_index = question.find("INC")
+            ticket = question[inc_index:inc_index + 10].strip() 
+            ticket = ticketInfo(ticket)
+            response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket)
+        else:
+            response = await asyncio.to_thread(ask_anythingllm, question)
     response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
     await ctx.reply(response)
 
@@ -327,7 +333,13 @@ async def on_message(message):
             context += "}\n User current response / question: " + message.content
             async with message.channel.typing():
                 try:
-                    response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                    if "INC" in context:
+                        inc_index = context.find("INC")
+                        ticket = context[inc_index:inc_index + 10].strip() 
+                        ticket = ticketInfo(ticket)
+                        response = await asyncio.to_thread(ask_anythingllm, context, ticket=ticket) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                    else:
+                        response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     if "This response was generated with AI Assistance." not in response:
                         response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     await message.reply(response)
@@ -338,8 +350,15 @@ async def on_message(message):
     # DMs → AnythingLLM
     if message.channel.type == discord.ChannelType.private:
         async with message.channel.typing():
+            question = message.content
             try:
-                response = await asyncio.to_thread(ask_anythingllm, message.content)
+                if "INC" in question:
+                    inc_index = question.find("INC")
+                    ticket = question[inc_index:inc_index + 10].strip() 
+                    ticket = ticketInfo(ticket)
+                    response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket)
+                else:
+                    response = await asyncio.to_thread(ask_anythingllm, question)
                 await message.reply(response)
             except Exception as e:
                 await message.channel.send(f"Error: {e}")

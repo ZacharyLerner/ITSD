@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import json
 load_dotenv()
 
-def ask_anythingllm(question):
+def ask_anythingllm(question, ticket=None):
     # LLM RAG Backend API configuration
     base_url = os.getenv('LLM_BACKEND_URL', 'http://10.140.2.31:3001')
     api_key = os.getenv('LLM_BACKEND_API_KEY')
@@ -20,9 +20,15 @@ def ask_anythingllm(question):
         "Content-Type": "application/json"
     }
 
-    request_body = {
-        "question": question
-    }
+    if ticket:
+        request_body = {
+            "question": question + "\n\nTicket Information:\n" + ticket
+        }
+        print("Request body with ticket information:", request_body)
+    else:
+        request_body = {
+            "question": question
+        }
 
     start_time = time.time()
     try:
