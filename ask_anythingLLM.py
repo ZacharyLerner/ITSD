@@ -24,7 +24,6 @@ def ask_anythingllm(question, ticket=None):
         request_body = {
             "question": question + "\n\nTicket Information:\n" + ticket
         }
-        print("Request body with ticket information:", request_body)
     else:
         request_body = {
             "question": question
