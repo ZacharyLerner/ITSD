@@ -46,7 +46,6 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
         response.raise_for_status()
 
         end_time = time.time()
-        print("\n\n".join(question_sections))
         print(f"LLM Backend response time: {end_time - start_time} seconds")
         
 
