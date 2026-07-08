@@ -180,16 +180,27 @@ async def incidents(ctx):
 async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
+        
+        message = ctx.message
+        image_attachments = [
+            attachment
+            for attachment in message.attachments
+            if (
+                 attachment.content_type
+                  and attachment.content_type.startswith("image/")
+            )
+            or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+        ]
+
         if "INC" in question:
             inc_index = question.find("INC")
             ticket = question[inc_index:inc_index + 10].strip() 
             ticket = ticketInfo(ticket)
-            response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket)
+            response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls=image_attachments)
         else:
-            response = await asyncio.to_thread(ask_anythingllm, question)
+            response = await asyncio.to_thread(ask_anythingllm, question, image_urls=image_attachments)
     response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
     await ctx.reply(response)
-
 # Reloads the times for the bot to run the daily commands
 # Ex. !reload_times will reload the times for the bot to run the daily commands
 @bot.command(name = "reload_times")
@@ -333,13 +344,22 @@ async def on_message(message):
             context += "}\n User current response / question: " + message.content
             async with message.channel.typing():
                 try:
+                    image_attachments = [
+                        attachment
+                        for attachment in message.attachments
+                        if (
+                            attachment.content_type
+                            and attachment.content_type.startswith("image/")
+                        )
+                        or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+                    ]
                     if "INC" in context:
                         inc_index = context.find("INC")
                         ticket = context[inc_index:inc_index + 10].strip() 
                         ticket = ticketInfo(ticket)
-                        response = await asyncio.to_thread(ask_anythingllm, context, ticket=ticket) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        response = await asyncio.to_thread(ask_anythingllm, context, ticket=ticket, image_urls = image_attachments) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     else:
-                        response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        response = await asyncio.to_thread(ask_anythingllm, context, image_urls = image_attachments) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     if "This response was generated with AI Assistance." not in response:
                         response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     await message.reply(response)
@@ -352,13 +372,22 @@ async def on_message(message):
         async with message.channel.typing():
             question = message.content
             try:
+                image_attachments = [
+                    attachment
+                    for attachment in message.attachments
+                    if (
+                        attachment.content_type
+                        and attachment.content_type.startswith("image/")
+                    )
+                    or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+                ]
                 if "INC" in question:
                     inc_index = question.find("INC")
                     ticket = question[inc_index:inc_index + 10].strip() 
                     ticket = ticketInfo(ticket)
-                    response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket)
+                    response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls = image_attachments)
                 else:
-                    response = await asyncio.to_thread(ask_anythingllm, question)
+                    response = await asyncio.to_thread(ask_anythingllm, question, image_urls = image_attachments)
                 await message.reply(response)
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
