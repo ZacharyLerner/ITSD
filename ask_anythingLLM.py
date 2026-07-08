@@ -25,12 +25,12 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
     question_sections = [question]
 
     if ticket:
-        question_sections.append(f"Ticket Information:\n{ticket}")
+        question_sections.append(f"Attached Ticket/s Information:\n{ticket}")
 
     if image_urls and len(image_urls) > 0:
         image_summary = summarize_images(image_urls)
         if image_summary:
-            question_sections.append(f"Image Information:\n{image_summary}")
+            question_sections.append(f"Attached Image/s Information:\n{image_summary}")
             if message_id:
                 save_image_description(message_id, image_summary)
 
