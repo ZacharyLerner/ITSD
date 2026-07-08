@@ -110,6 +110,22 @@ async def write_values(suggestion):
     channel = discord.utils.get(guild.text_channels, name="additions")
     await channel.send("\n**Suggestion (React with 👍 to approve or 👎 to deny):\n** \n" + suggestion)
 
+def get_image_description(message_id):
+    IMAGE_CONTEXT_FILE = "image_contexts.json"
+    filepath = os.path.join(DATA_FOLDER, IMAGE_CONTEXT_FILE)
+
+    if not os.path.exists(filepath):
+        return None
+
+    with open(filepath, "r") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            return None
+
+    return data.get(str(message_id))
+
+
 # BOT COMMANDS 
 
 # Prints out the Queue and updates the last bot message sent
@@ -180,16 +196,27 @@ async def incidents(ctx):
 async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
+        
+        message = ctx.message
+        image_attachments = [
+            attachment
+            for attachment in message.attachments
+            if (
+                 attachment.content_type
+                  and attachment.content_type.startswith("image/")
+            )
+            or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+        ]
+
         if "INC" in question:
             inc_index = question.find("INC")
             ticket = question[inc_index:inc_index + 10].strip() 
             ticket = ticketInfo(ticket)
-            response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket)
+            response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls=image_attachments, message_id=message.id)
         else:
-            response = await asyncio.to_thread(ask_anythingllm, question)
+            response = await asyncio.to_thread(ask_anythingllm, question, image_urls=image_attachments, message_id=message.id)
     response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
     await ctx.reply(response)
-
 # Reloads the times for the bot to run the daily commands
 # Ex. !reload_times will reload the times for the bot to run the daily commands
 @bot.command(name = "reload_times")
@@ -298,12 +325,12 @@ async def on_message(message):
     if message.reference and message.reference.message_id:
         replied_message = message.reference.resolved
 
+        if replied_message is None:
+            replied_message = await message.channel.fetch_message(
+                message.reference.message_id
+            )
 
         if replied_message.author == bot.user and "AI Assistance" in replied_message.content:
-            if replied_message is None:
-                replied_message = await message.channel.fetch_message(
-                    message.reference.message_id
-                )
 
             stack = deque()
             current_message = replied_message
@@ -323,7 +350,10 @@ async def on_message(message):
             context = "Previous conversation history to keep in mind: {"
 
             while len(stack) > 1:
-                user_content = stack.pop().content
+                current_message = stack.pop()
+                user_content = current_message.content
+                if get_image_description(current_message.id) != None:
+                    user_content += "\n" + "Message Image Content Description: " + str(get_image_description(current_message.id))
                 bot_content = stack.pop().content
                 footer_start = bot_content.find("*This response was generated with AI Assistance.")
                 if footer_start != -1:
@@ -333,13 +363,22 @@ async def on_message(message):
             context += "}\n User current response / question: " + message.content
             async with message.channel.typing():
                 try:
+                    image_attachments = [
+                        attachment
+                        for attachment in message.attachments
+                        if (
+                            attachment.content_type
+                            and attachment.content_type.startswith("image/")
+                        )
+                        or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+                    ]
                     if "INC" in context:
                         inc_index = context.find("INC")
                         ticket = context[inc_index:inc_index + 10].strip() 
                         ticket = ticketInfo(ticket)
-                        response = await asyncio.to_thread(ask_anythingllm, context, ticket=ticket) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        response = await asyncio.to_thread(ask_anythingllm, context, ticket=ticket, image_urls = image_attachments, message_id=message.id) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     else:
-                        response = await asyncio.to_thread(ask_anythingllm, context) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        response = await asyncio.to_thread(ask_anythingllm, context, image_urls = image_attachments, message_id=message.id) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     if "This response was generated with AI Assistance." not in response:
                         response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     await message.reply(response)
@@ -352,13 +391,24 @@ async def on_message(message):
         async with message.channel.typing():
             question = message.content
             try:
+                image_attachments = [
+                    attachment
+                    for attachment in message.attachments
+                    if (
+                        attachment.content_type
+                        and attachment.content_type.startswith("image/")
+                    )
+                    or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+                ]
                 if "INC" in question:
                     inc_index = question.find("INC")
                     ticket = question[inc_index:inc_index + 10].strip() 
                     ticket = ticketInfo(ticket)
-                    response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket)
+                    response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls = image_attachments, message_id=message.id)
+                    response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                 else:
-                    response = await asyncio.to_thread(ask_anythingllm, question)
+                    response = await asyncio.to_thread(ask_anythingllm, question, image_urls = image_attachments, message_id=message.id)
+                    response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                 await message.reply(response)
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
@@ -485,3 +535,4 @@ async def on_ready():
 
 # Runs the bot with the Discord Token
 bot.run(TOKEN)
+
