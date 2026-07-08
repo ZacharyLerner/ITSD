@@ -7,7 +7,7 @@ import base64
 import litellm
 load_dotenv()
 
-def ask_anythingllm(question, ticket=None, image_urls=None):
+def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
     # LLM RAG Backend API configuration
     base_url = os.getenv('LLM_BACKEND_URL', 'http://10.140.2.31:3001')
     api_key = os.getenv('LLM_BACKEND_API_KEY')
@@ -31,6 +31,9 @@ def ask_anythingllm(question, ticket=None, image_urls=None):
         image_summary = summarize_images(image_urls)
         if image_summary:
             question_sections.append(f"Image Information:\n{image_summary}")
+            if message_id:
+                save_image_description(message_id, image_summary)
+
 
     request_body = {
         "question": "\n\n".join(question_sections)
@@ -172,3 +175,24 @@ def detect_image_media_type(image_bytes, fallback="image/png"):
         return "image/webp"
 
     return fallback
+
+
+def save_image_description(message_id, description):
+    DATA_FOLDER = "data"
+    IMAGE_CONTEXT_FILE = "image_contexts.json"
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    filepath = os.path.join(DATA_FOLDER, IMAGE_CONTEXT_FILE)
+
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+    else:
+        data = {}
+
+    data[str(message_id)] = description
+
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
