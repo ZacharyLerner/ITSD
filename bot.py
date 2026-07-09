@@ -79,6 +79,27 @@ def load_suggestions():
 def suggestion_recorded(message_id):
     return message_id in load_suggestions()
 
+def log_react(display_name):
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    filepath = os.path.join(DATA_FOLDER, "react_log.json")
+
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = []
+    else:
+        data = []
+
+    data.append({
+        "user": display_name,
+        "timestamp": str(datetime.now())
+    })
+
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
+
 def log_feedback(user, message, file):
     clean_content = message.content[:-175].strip()
     entry = {
@@ -179,6 +200,7 @@ async def remove_user(ctx):
 async def remove_user(ctx, member: discord.Member):
     global last_bot_message
     react_queue(member.display_name)
+    log_react(member.display_name)
     last_bot_message = await ctx.send(get_queue())
 
 # Clears the Queue of all users in the ready and not ready queues
