@@ -48,7 +48,7 @@ def back_to_start(nickname):
     if nickname not in ready_queue and nickname not in not_ready_queue:
         return (f"{nickname} not in the queue")
     elif nickname in ready_queue:
-        return (f"{nickname} is not reacted currently")
+        return (f"{nickname} is not currently with a user")
     else:
         not_ready_queue.remove(nickname)
         ready_queue.insert(0, nickname)
