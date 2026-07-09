@@ -44,6 +44,15 @@ def react_queue(nickname):
         ready_queue.append(nickname)
         not_ready_queue.remove(nickname)
 
+def back_to_start(nickname):
+    if nickname not in ready_queue and nickname not in not_ready_queue:
+        return (f"{nickname} not in the queue")
+    elif nickname in ready_queue:
+        return (f"{nickname} is not reacted currently")
+    else:
+        not_ready_queue.remove(nickname)
+        ready_queue.insert(0, nickname)
+
 # Returns a queue message based on the positions of Users in the lists
 def update_queue_message():
     # Construct the queue message content

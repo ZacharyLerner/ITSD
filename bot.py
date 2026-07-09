@@ -17,7 +17,7 @@ DM_User = int(os.getenv("DM_USER"))
 output_dir = os.getenv("output_dir")
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
-from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
+from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue, back_to_start
 from scheduler import daily_commands, purge_channel, get_incidents, write_newsletter_scheduled
 from ask_anythingLLM import ask_anythingllm
 from LLM_Upload_Manager import update_doc, full_upload
@@ -141,6 +141,15 @@ async def remove_user(ctx, member: discord.Member):
 @bot.command(name = "join")
 async def add_user(ctx):
     await ctx.send(add_to_queue(ctx.author.display_name))
+
+@bot.command(name = "back")
+async def back_user(ctx):
+    back_response = back_to_start(ctx.author.display_name)
+    if back_response != None:
+        await ctx.send(back_response)
+    else:
+        global last_bot_message 
+        last_bot_message = await ctx.send(get_queue())
 
 # Removes a user from the Queue
 # Ex. !leave will print a message confirming a person has been removed to the Queue
