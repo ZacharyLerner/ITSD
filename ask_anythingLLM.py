@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import json
 import base64
 import litellm
+from PIL import Image, ImageOps
+from io import BytesIO
 load_dotenv()
 
 def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
@@ -121,7 +123,7 @@ def summarize_images(image_attachments):
             response.raise_for_status()
 
             image_bytes = response.content
-            content_type = detect_image_media_type(image_bytes)
+            image_bytes, content_type = compress_image_if_needed(image_bytes)
             encoded_image = base64.b64encode(image_bytes).decode("utf-8")
 
             image_content.append({
@@ -195,3 +197,43 @@ def save_image_description(message_id, description):
 
     with open(filepath, "w") as f:
         json.dump(data, f, indent=2)
+
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+TARGET_IMAGE_BYTES = int(3.75 * 1024 * 1024)
+
+
+def compress_image_if_needed(image_bytes, max_bytes=TARGET_IMAGE_BYTES):
+    if len(image_bytes) <= max_bytes:
+        return image_bytes, detect_image_media_type(image_bytes)
+    with Image.open(BytesIO(image_bytes)) as img:
+        img = ImageOps.exif_transpose(img)
+
+        if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+            rgba = img.convert("RGBA")
+            background = Image.new("RGB", rgba.size, (255, 255, 255))
+            background.paste(rgba, mask=rgba.split()[-1])
+            img = background
+        else:
+            img = img.convert("RGB")
+
+        quality = 85
+
+        while img.width > 1 and img.height > 1:
+            output = BytesIO()
+            img.save(output, format="JPEG", quality=quality, optimize=True)
+            compressed = output.getvalue()
+
+            if len(compressed) <= max_bytes:
+                return compressed, "image/jpeg"
+
+            if quality > 45:
+                quality -= 10
+            else:
+                new_size = (
+                    max(1, int(img.width * 0.85)),
+                    max(1, int(img.height * 0.85)),
+                )
+                img = img.resize(new_size, Image.LANCZOS)
+                quality = 75
+
+        return compressed, "image/jpeg"
