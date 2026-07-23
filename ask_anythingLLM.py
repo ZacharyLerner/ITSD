@@ -17,7 +17,7 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
     DATA_FOLDER = "data"
     file = "LLM_Source_Data.json"
 
-    endpoint = f"{base_url}/workspace/{workspace_slug}/query"
+    endpoint = f"{base_url}/api/workspace/{workspace_slug}/query"
 
     headers = {
         "X-API-Key": api_key,
