@@ -18,10 +18,9 @@ output_dir = os.getenv("output_dir")
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue, back_to_start
-from scheduler import daily_commands, purge_channel, get_incidents, write_newsletter_scheduled
+from scheduler import daily_commands, purge_channel, get_incidents
 from ask_anythingLLM import ask_anythingllm
 from LLM_Upload_Manager import update_doc, full_upload
-from newsletterManager import check_jabber_message, check_ticket_message, write_professional_chat, write_newsletter_managed
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -295,14 +294,6 @@ async def docs_upload(ctx):
         if str(e) != "Expecting value: line 1 column 1 (char 0)" and e != "object dict can't be used in 'await' expression":
             await ctx.reply(f"Upload failed: {e}")
 
-@bot.command(name= "newsletter")
-async def write_newsletter(ctx):
-    try:
-        message = write_newsletter_managed()
-        await write_newsletter_scheduled(bot, message)
-    except Exception as e:
-        await ctx.reply(f"Newsletter generation failed: {e}")
-
 # Updates the suggestion list
 @bot.command(name = "update")
 async def update(ctx):
@@ -334,7 +325,6 @@ async def custom_help(ctx):
     `!incidents` - Get active incidents (emails).
     `!search "question"` - Ask a question and get internal documentation answers.
     `!teach "text"` - Suggest content for the search.
-    `!newsletter` - Generate and post the weekly newsletter.
     `!docs_upload` - Reupload all documents to the LLM backend immediately (instead of waiting for the scheduled weekly upload).
     `!db_update` - Updates the Database Backend if changes to Search Files have been made.
 
@@ -444,24 +434,6 @@ async def on_message(message):
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
         return
-    
-    elif message.channel.name == "jabber-shift-chat":
-        try:
-            check_jabber_message(message.content)
-        except Exception as e:
-            print(f"Jabber Classifier error: {e}")
-
-    elif message.channel.name == "service-now-ticket-help":
-        try:
-            check_ticket_message(message.content)
-        except Exception as e:
-            print(f"Ticket Classifier error: {e}")
-
-    elif message.channel.name == "professional-chat":
-        try:
-            write_professional_chat(message.content)
-        except Exception as e:
-            print(f"Ticket Classifier error: {e}")
     
     elif message.channel.name == "vem-chat":
         filepath = "data/vem.json"
