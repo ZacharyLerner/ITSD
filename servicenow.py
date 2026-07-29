@@ -367,6 +367,7 @@ def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
 
     return
 
+# Gets all documents from specific subcategories and saves them to the local KB folders
 def get_all_docs():
     gather_docs(["1c022b1683da861095c6e6d0deaad350"]) # Accounts and Access
     gather_docs(["a559edc74720ced0d544d698436d439e"]) # Communication and Collaboration
@@ -738,6 +739,7 @@ Conversation:
 {conversation}
 """
 
+# Gathers ticket information and formats it for LLM consumption
 def ticketInfo(ticket_number):
     ticket = getTicket(ticket_number)
     if not ticket:

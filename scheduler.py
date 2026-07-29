@@ -37,6 +37,7 @@ VALID_COMMANDS = {
     "reupload_docs"
 }
 
+# Default channel to send messages if no channel is specified in the calendar event
 DEFAULT_CHANNEL = "jabber-shift-chat"
 
 def get_values():
@@ -130,7 +131,7 @@ def get_values():
         print(err)
         return None
     
-
+# Delete vem json file to get rid of recorded messages from the previous day
 async def delete_vem():
     if os.path.exists("data/vem.json"):
         os.remove("data/vem.json")
@@ -157,6 +158,7 @@ async def get_incidents(bot):
     else:
         await channel.send(f"We have {inc_num} new emails")
 
+# Sends a custom message to a specified channel, defaulting to #jabber-shift-chat if no channel is specified.
 async def send_custom_message(bot, message, channel_name = DEFAULT_CHANNEL):
     guild = bot.guilds[0]
     channel_name = channel_name.strip().lstrip("#") or DEFAULT_CHANNEL
@@ -165,6 +167,7 @@ async def send_custom_message(bot, message, channel_name = DEFAULT_CHANNEL):
         channel = discord.utils.get(guild.text_channels, name=DEFAULT_CHANNEL)
     await channel.send(message)
 
+# Custom event for checking incidents, scheduled via Google Calendar
 async def schedule_get_incidents(bot, scheduler, day, hour, minute):
     """Schedules an incident-check job for one Calendar event."""
     scheduler.add_job(
@@ -178,6 +181,7 @@ async def schedule_get_incidents(bot, scheduler, day, hour, minute):
     )
     print("Incident Scheduled")
 
+# Custom event for reuploading all documents to the Vector DB, scheduled via Google Calendar
 async def schedule_reupload_docs(scheduler, day, hour, minute):
     """Schedules a document reupload job"""
     scheduler.add_job(
@@ -190,7 +194,7 @@ async def schedule_reupload_docs(scheduler, day, hour, minute):
     )
     print("docs reuploaded")
 
-
+# Event for custom messages, scheduled via Google Calendar
 async def schedule_custom_message(bot, scheduler, day, hour, minute, message, channel_name):
     """Schedules a custom Calendar-description message."""
     scheduler.add_job(
