@@ -17,11 +17,10 @@ DM_User = int(os.getenv("DM_USER"))
 output_dir = os.getenv("output_dir")
 
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
-from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue
-from scheduler import daily_commands, purge_channel, get_incidents, write_newsletter_scheduled
+from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue, back_to_start
+from scheduler import daily_commands, purge_channel, get_incidents
 from ask_anythingLLM import ask_anythingllm
 from LLM_Upload_Manager import update_doc, full_upload
-from newsletterManager import check_jabber_message, check_ticket_message, write_professional_chat, write_newsletter_managed
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
 intents = discord.Intents.default()
@@ -78,6 +77,27 @@ def load_suggestions():
 # Checks if a suggestion has already been recorded based on its message ID to prevent duplicates
 def suggestion_recorded(message_id):
     return message_id in load_suggestions()
+
+def log_react(display_name):
+    os.makedirs(DATA_FOLDER, exist_ok=True)
+    filepath = os.path.join(DATA_FOLDER, "react_log.json")
+
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = []
+    else:
+        data = []
+
+    data.append({
+        "user": display_name,
+        "timestamp": str(datetime.now())
+    })
+
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
 
 def log_feedback(user, message, file):
     clean_content = message.content[:-175].strip()
@@ -162,6 +182,15 @@ async def remove_user(ctx, member: discord.Member):
 async def add_user(ctx):
     await ctx.send(add_to_queue(ctx.author.display_name))
 
+@bot.command(name = "back")
+async def back_user(ctx):
+    back_response = back_to_start(ctx.author.display_name)
+    if back_response != None:
+        await ctx.send(back_response)
+    else:
+        global last_bot_message 
+        last_bot_message = await ctx.send(get_queue())
+
 # Removes a user from the Queue
 # Ex. !leave will print a message confirming a person has been removed to the Queue
 @bot.command(name = "leave")
@@ -174,6 +203,7 @@ async def remove_user(ctx):
 async def remove_user(ctx, member: discord.Member):
     global last_bot_message
     react_queue(member.display_name)
+    log_react(member.display_name)
     last_bot_message = await ctx.send(get_queue())
 
 # Clears the Queue of all users in the ready and not ready queues
@@ -269,14 +299,6 @@ async def docs_upload(ctx):
         if str(e) != "Expecting value: line 1 column 1 (char 0)" and e != "object dict can't be used in 'await' expression":
             await ctx.reply(f"Upload failed: {e}")
 
-@bot.command(name= "newsletter")
-async def write_newsletter(ctx):
-    try:
-        message = write_newsletter_managed()
-        await write_newsletter_scheduled(bot, message)
-    except Exception as e:
-        await ctx.reply(f"Newsletter generation failed: {e}")
-
 # Updates the suggestion list
 @bot.command(name = "update")
 async def update(ctx):
@@ -308,7 +330,6 @@ async def custom_help(ctx):
     `!incidents` - Get active incidents (emails).
     `!search "question"` - Ask a question and get internal documentation answers.
     `!teach "text"` - Suggest content for the search.
-    `!newsletter` - Generate and post the weekly newsletter.
     `!docs_upload` - Reupload all documents to the LLM backend immediately (instead of waiting for the scheduled weekly upload).
     `!db_update` - Updates the Database Backend if changes to Search Files have been made.
 
@@ -422,25 +443,6 @@ async def on_message(message):
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
         return
-    
-    elif message.channel.name == "jabber-shift-chat":
-        try:
-            check_jabber_message(message.content)
-        except Exception as e:
-            print(f"Jabber Classifier error: {e}")
-
-    elif message.channel.name == "service-now-ticket-help":
-        try:
-            check_ticket_message(message.content)
-        except Exception as e:
-            print(f"Ticket Classifier error: {e}")
-
-    elif message.channel.name == "professional-chat":
-        try:
-            write_professional_chat(message.content)
-        except Exception as e:
-            print(f"Ticket Classifier error: {e}")
-
     # Vem chat duplicate ticket check, if the same ticket is mentioned within 20 minutes, it will reply to the user to make sure it isn't being worked on by someone else
     # Vem messages are stored in a JSON file with the message content and the time it was sent, if the same message is sent again within 20 minutes, it will reply to the user to make sure it isn't being worked on by someone else
     # The JSON file is stored in the data folder and is named vem.json and is reset daily (in scheduler.py). 

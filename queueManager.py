@@ -16,12 +16,14 @@ def add_to_queue(nickname):
         return (f"{nickname} already in the queue")
     else:
         ready_queue.append(nickname)
+        save_queues()
         return (f"{nickname} added in the queue")
 
 # Clears both lists from all values (Users)
 def clear_user_queue():
     ready_queue.clear()
     not_ready_queue.clear()
+    save_queues()
     return "Queue Cleared"
 
 # Removes a specific value (User) from where it is located in either queue
@@ -33,16 +35,29 @@ def remove_from_queue(nickname):
             ready_queue.remove(nickname)
         if nickname in not_ready_queue:
             not_ready_queue.remove(nickname)
+        save_queues()
         return (f"{nickname} removed in the queue")
 
 # Moves a user from one list to the other 
 def react_queue(nickname):
     if nickname in ready_queue:
         not_ready_queue.append(nickname)
-        ready_queue.remove(nickname)   
+        ready_queue.remove(nickname)
+        save_queues()
     elif nickname in not_ready_queue:
         ready_queue.append(nickname)
         not_ready_queue.remove(nickname)
+        save_queues()
+
+def back_to_start(nickname):
+    if nickname not in ready_queue and nickname not in not_ready_queue:
+        return (f"{nickname} not in the queue")
+    elif nickname in ready_queue:
+        return (f"{nickname} is not currently with a user")
+    else:
+        not_ready_queue.remove(nickname)
+        ready_queue.insert(0, nickname)
+        save_queues()
 
 # Returns a queue message based on the positions of Users in the lists
 def update_queue_message():

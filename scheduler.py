@@ -153,13 +153,10 @@ async def get_incidents(bot):
     inc_num = incident_query(get_access_token())
     guild = bot.guilds[0]
     channel = discord.utils.get(guild.text_channels, name="jabber-shift-chat")
-    await channel.send(f"We have {inc_num} new emails")
-
-
-async def write_newsletter_scheduled(bot, message):
-    guild = bot.guilds[0]
-    channel = discord.utils.get(guild.text_channels, name="newsletter")
-    await channel.send(message)
+    if inc_num == 0:
+        await channel.send(f"https://cdn.discordapp.com/attachments/1451255048553234534/1522303059865374811/IMG_9304-ezgif.com-added-text1.gif?ex=6a47fab4&is=6a46a934&hm=8dfe196e97ce2ae18f5e90df9193c97fa1a08ccfa5db54ec283a319d127af90c&")
+    else:
+        await channel.send(f"We have {inc_num} new emails")
 
 # Sends a custom message to a specified channel, defaulting to #jabber-shift-chat if no channel is specified.
 async def send_custom_message(bot, message, channel_name = DEFAULT_CHANNEL):
