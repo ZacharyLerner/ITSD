@@ -105,11 +105,15 @@ def log_feedback(user, message, file):
     with open(filepath, "w") as f:
         json.dump(data, f, indent=2)
 
+
+# Async function to send a suggestion to the "additions" channel for review and approval
 async def write_values(suggestion):
     guild = bot.guilds[0]
     channel = discord.utils.get(guild.text_channels, name="additions")
     await channel.send("\n**Suggestion (React with 👍 to approve or 👎 to deny):\n** \n" + suggestion)
 
+
+# Function to get the description of an image based on the message ID from the image_contexts JSON file
 def get_image_description(message_id):
     IMAGE_CONTEXT_FILE = "image_contexts.json"
     filepath = os.path.join(DATA_FOLDER, IMAGE_CONTEXT_FILE)
@@ -196,7 +200,7 @@ async def incidents(ctx):
 async def ask_question(ctx, *, question):
     global indexes
     async with ctx.typing():
-        
+        # checking for any image attachments in the message to send to the LLM for context
         message = ctx.message
         image_attachments = [
             attachment
@@ -207,7 +211,7 @@ async def ask_question(ctx, *, question):
             )
             or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
         ]
-
+        # checking for any ticket numbers in the question to send to the LLM for context
         if "INC" in question:
             inc_index = question.find("INC")
             ticket = question[inc_index:inc_index + 10].strip() 
@@ -231,6 +235,7 @@ async def suggest(ctx, *, suggestion):
     await write_values(suggestion)
     await ctx.reply("Suggestion has been recorded")
 
+# Sends message explaining how to use the events scheduling
 @bot.command(name= "events_help")
 async def events_help(ctx):
     help_text = """
@@ -315,8 +320,8 @@ async def custom_help(ctx):
     """
     await ctx.send(help_text)
     
-
 # Make it so that if anyone direct messages the bot it will respond with a message
+# Make it so that if anyone replies to a llm response it will respond with a message with context of the previous conversation
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -329,9 +334,9 @@ async def on_message(message):
             replied_message = await message.channel.fetch_message(
                 message.reference.message_id
             )
-
+        # Checking if the message being replied to is a LLM response
         if replied_message.author == bot.user and "AI Assistance" in replied_message.content:
-
+            # Getting the previous conversation history by traversing the message references and storing them in a stack to maintain order
             stack = deque()
             current_message = replied_message
             while current_message:
@@ -346,9 +351,9 @@ async def on_message(message):
                     current_message = next_message
                 else:
                     current_message = None
-
+            # Traversing the stack to build the context string for the LLM query
             context = "Previous conversation history to keep in mind: {"
-
+            
             while len(stack) > 1:
                 current_message = stack.pop()
                 user_content = current_message.content
@@ -361,6 +366,7 @@ async def on_message(message):
                 context += "\n User: " + user_content.strip() + "\n Bot: " + bot_content.strip()
 
             context += "}\n User current response / question: " + message.content
+            # Getting any image or ticket attachments from the current message to send to the LLM for context
             async with message.channel.typing():
                 try:
                     image_attachments = [
@@ -388,8 +394,10 @@ async def on_message(message):
 
     # DMs → AnythingLLM
     if message.channel.type == discord.ChannelType.private:
+        # Getting any image or ticket attachments from the current message to send to the LLM for context
         async with message.channel.typing():
             question = message.content
+            # Get any images attached to the questions and send them to the LLM for context
             try:
                 image_attachments = [
                     attachment
@@ -400,6 +408,7 @@ async def on_message(message):
                     )
                     or attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
                 ]
+                # Check if "INC" is in the question, get the ticket number, then send it to LLM reuqest to add the information from the ticket to the context
                 if "INC" in question:
                     inc_index = question.find("INC")
                     ticket = question[inc_index:inc_index + 10].strip() 
@@ -431,7 +440,10 @@ async def on_message(message):
             write_professional_chat(message.content)
         except Exception as e:
             print(f"Ticket Classifier error: {e}")
-    
+
+    # Vem chat duplicate ticket check, if the same ticket is mentioned within 20 minutes, it will reply to the user to make sure it isn't being worked on by someone else
+    # Vem messages are stored in a JSON file with the message content and the time it was sent, if the same message is sent again within 20 minutes, it will reply to the user to make sure it isn't being worked on by someone else
+    # The JSON file is stored in the data folder and is named vem.json and is reset daily (in scheduler.py). 
     elif message.channel.name == "vem-chat":
         filepath = "data/vem.json"
         if os.path.exists(filepath):
@@ -451,7 +463,6 @@ async def on_message(message):
 
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(vem, f, indent=4, ensure_ascii=False)
-
         else:
             for item in vem:
                 if item["message"] == message.content:
@@ -488,7 +499,7 @@ async def on_command_completion(ctx):
 async def on_reaction_add(reaction, user):
     global last_bot_message
     
-    # checks for reactions to messages for the zoom que 
+    # checks for reactions to messages for the zoom queue
     if reaction.message == last_bot_message:
         react_queue(user.display_name)
         await last_bot_message.edit(content = get_queue())
@@ -502,7 +513,7 @@ async def on_reaction_add(reaction, user):
                 log_feedback(user, reaction.message, "positive_feedback.json")
             elif str(reaction.emoji) == "👎":
                 log_feedback(user, reaction.message, "negative_feedback.json")
-
+    # If the message is in additions channel it will either add the suggestion to the additions.json file or delete the message based on the reaction
     elif reaction.message.channel.name == "additions":
         guild = bot.guilds[0]
         channel = discord.utils.get(guild.text_channels, name="additions")

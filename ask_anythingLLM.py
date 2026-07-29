@@ -26,9 +26,11 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
 
     question_sections = [question]
 
+    # If a ticket is provided, add it to the question sections for context
     if ticket:
         question_sections.append(f"Attached Ticket/s Information:\n{ticket}")
 
+    # If image URLs are provided, summarize the images and add the summary to the question sections for context
     if image_urls and len(image_urls) > 0:
         image_summary = summarize_images(image_urls)
         if image_summary:
@@ -91,6 +93,7 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
     except requests.exceptions.RequestException as e:
         return f"An error occurred while communicating with the LLM backend: {str(e)}"
 
+# Send images to a smaller model to summarize the image and return a text description of the image to be used as context for the main LLM
 def summarize_images(image_attachments):
     API_BASE = os.getenv("API_BASE")
     MODEL = os.getenv("ITSD_DEV_MODEL_HAIKU")
@@ -102,6 +105,7 @@ def summarize_images(image_attachments):
     image_content = [
         {
             "type": "text",
+            # Prompt for model to summarize image
             "text": (
                 """You are a visual context summarizer. Given an image — and optionally the user's question or conversation context — translate it into a comprehensive, highly detailed, self-contained text description that performs well as visual context for another text-only LLM. Rules: 
                     - Output ONLY the image description. No explanation, no introductory filler, no conversational text. 
@@ -158,6 +162,7 @@ def summarize_images(image_attachments):
         return f"Error: {e}"
     
 
+# Detect the media type of an image based on its byte signature, with a fallback option of png if the type cannot be determined.
 def detect_image_media_type(image_bytes, fallback="image/png"):
     if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
@@ -178,6 +183,7 @@ def detect_image_media_type(image_bytes, fallback="image/png"):
     return fallback
 
 
+# Saves the image description to a JSON file for later retrieval, keyed by the message ID. This allows the bot to provide context for images in future interactions without needing to reprocess the image.
 def save_image_description(message_id, description):
     DATA_FOLDER = "data"
     IMAGE_CONTEXT_FILE = "image_contexts.json"
@@ -201,7 +207,7 @@ def save_image_description(message_id, description):
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 TARGET_IMAGE_BYTES = int(3.75 * 1024 * 1024)
 
-
+# Compresses images if they are above the 5MB limit of the anthropic haiku models
 def compress_image_if_needed(image_bytes, max_bytes=TARGET_IMAGE_BYTES):
     if len(image_bytes) <= max_bytes:
         return image_bytes, detect_image_media_type(image_bytes)
