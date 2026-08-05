@@ -62,7 +62,7 @@ def upload_and_embed(file_name, workspace_slug=None):
     Returns the full response JSON including doc_id and chunks_embedded.
     """
     slug = workspace_slug or WORKSPACE_SLUG
-    url = f"{LLM_ENDPOINT_URL}/workspace/{slug}/embed"
+    url = f"{LLM_ENDPOINT_URL}/api/workspace/{slug}/embed"
     with open(file_name, 'rb') as f:
         response = requests.post(url, headers=HEADERS, files={'file': (os.path.basename(file_name), f)})
     response.raise_for_status()
@@ -71,7 +71,7 @@ def upload_and_embed(file_name, workspace_slug=None):
 def delete_embed(doc_id, workspace_slug=None):
     """Deletes embedded document chunks from Vector DB by doc_id."""
     slug = workspace_slug or WORKSPACE_SLUG
-    url = f"{LLM_ENDPOINT_URL}/workspace/{slug}/embed/{doc_id}"
+    url = f"{LLM_ENDPOINT_URL}/api/workspace/{slug}/embed/{doc_id}"
     response = requests.delete(url, headers=HEADERS)
     response.raise_for_status()
     return response.json()
