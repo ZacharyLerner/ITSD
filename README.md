@@ -1,6 +1,6 @@
 # ITSD Bot
 
-ITSD Bot is a Discord bot built to support an IT service desk team. It manages the student support queue, checks ServiceNow incidents, answers questions using internal knowledge-base content, and handles routine announcements and maintenance tasks.
+ITSD Bot is a Discord bot built to support the URI IT service desk team. It manages the student support queue, checks ServiceNow incidents, answers questions using internal knowledge-base content, and handles routine announcements and maintenance tasks.
 
 ## Full documentation
 
