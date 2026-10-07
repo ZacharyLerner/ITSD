@@ -7,3 +7,5 @@ google-auth-oauthlib>=1.0.0
 google-api-python-client>=2.90.0
 litellm
 Pillow>=10.4.0
+# DoclingDocument model, to save KB summaries in the format the backend chunks and cites
+docling-core
