@@ -1,9 +1,13 @@
 from os import path as os_path
 from json import dumps, loads, JSONDecodeError
 from datetime import datetime, timedelta
+import hashlib
 import re
 import requests
 import getpass
+
+from docling_core.types.doc import DocItemLabel, DoclingDocument
+from docling_core.types.doc.document import DocumentOrigin
 
 from dotenv import load_dotenv
 import os
@@ -25,9 +29,16 @@ log.basicConfig(format="%(levelname)s:%(message)s", level=log.ERROR)
 TOKEN_FILE = "refresh.token"
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 LLM_FILES_FOLDER = os.path.join(BASE_DIR, "LLM_Files")
-KB_SUMMARY_FOLDER = os.path.join(LLM_FILES_FOLDER, "kb_docs")
+# KB summaries are saved as DoclingDocument JSON. The backend recognises the
+# ".docling.json" suffix and cites the article link stored in the document.
+KB_DOCLING_FOLDER = os.path.join(LLM_FILES_FOLDER, "kb_docling")
 KB_CONTENT_FOLDER = os.path.join(LLM_FILES_FOLDER, "kb_docs_with_content")
-KB_DOC_FOLDERS = (KB_SUMMARY_FOLDER,)
+KB_DOC_FOLDERS = (KB_DOCLING_FOLDER,)
+# Summary JSON uploaded before the switch to Docling. deleteAll still removes
+# these uploads and files so the old copies don't sit next to the new ones.
+KB_SUMMARY_FOLDER = os.path.join(LLM_FILES_FOLDER, "kb_docs")
+KB_TRACKED_FOLDERS = (KB_DOCLING_FOLDER, KB_SUMMARY_FOLDER)
+DOCLING_SUFFIX = ".docling.json"
 
 llm_upload_manager.LOCATIONS_FILE = os.path.join(BASE_DIR, "document_locations.json")
 
@@ -311,12 +322,32 @@ def get_kb(subcategory, access_token, one_shot=False):
         return []
     
 
+def kb_docling_document(number, short_desc, meta_desc, link):
+    """Build the DoclingDocument JSON for a KB article summary.
+
+    The title is "<number> - <short description>", the text is the meta
+    description, and origin.uri is the article link, which is what answers cite.
+    """
+    title = f"{number} - {short_desc}" if number else short_desc
+    doc = DoclingDocument(name=number or short_desc)
+    doc.origin = DocumentOrigin(
+        filename=f"{number or 'article'}.json",
+        mimetype="application/json",
+        binary_hash=int(hashlib.sha256(f"{title}\n{meta_desc}".encode()).hexdigest()[:16], 16),
+        uri=link,
+    )
+    doc.add_text(label=DocItemLabel.TITLE, text=title)
+    if meta_desc:
+        doc.add_text(label=DocItemLabel.TEXT, text=meta_desc)
+    return doc.export_to_dict()
+
+
 # Function to gather docs for a list of subcategory ids
 def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
     if seen_texts is None:
         seen_texts = set()
 
-    os.makedirs(KB_SUMMARY_FOLDER, exist_ok=True)
+    os.makedirs(KB_DOCLING_FOLDER, exist_ok=True)
     os.makedirs(KB_CONTENT_FOLDER, exist_ok=True)
 
     for subcategory_id in subcategory_ids:
@@ -341,13 +372,6 @@ def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
 
                 safe_name = display_number or record.get("sys_id", "unknown")
 
-                summary_doc = {
-                    "number": display_number,
-                    "short_description": short_desc,
-                    "meta_description": meta_desc,
-                    "link": link,
-                }
-
                 content_doc = {
                     "number": display_number,
                     "short_description": short_desc,
@@ -356,11 +380,14 @@ def gather_docs(subcategory_ids, seen_texts=None, access_token=None):
                     "content": article_content,
                 }
 
-                summary_path = os.path.join(KB_SUMMARY_FOLDER, f"{safe_name}.json")
+                summary_path = os.path.join(KB_DOCLING_FOLDER, f"{safe_name}{DOCLING_SUFFIX}")
                 content_path = os.path.join(KB_CONTENT_FOLDER, f"{safe_name}.json")
 
                 with open(summary_path, "w", encoding="utf-8") as f:
-                    f.write(dumps(summary_doc, indent=2, ensure_ascii=False))
+                    f.write(dumps(
+                        kb_docling_document(display_number, short_desc, meta_desc, link),
+                        ensure_ascii=False,
+                    ))
 
                 with open(content_path, "w", encoding="utf-8") as f:
                     f.write(dumps(content_doc, indent=2, ensure_ascii=False))
@@ -379,9 +406,9 @@ def get_all_docs():
     gather_docs(["a8fbdbcc470d0a1021080678436d4359"]) # Student Life
 
 
-def _kb_doc_paths():
+def _kb_doc_paths(folders=None):
     doc_paths = []
-    for folder in KB_DOC_FOLDERS:
+    for folder in folders or KB_DOC_FOLDERS:
         if not os.path.isdir(folder):
             continue
 
@@ -405,7 +432,7 @@ def _candidate_absolute_paths(file_name):
 
 def _is_kb_doc_path(file_name):
     candidate_paths = _candidate_absolute_paths(file_name)
-    kb_folders = {os.path.abspath(folder) for folder in KB_DOC_FOLDERS}
+    kb_folders = {os.path.abspath(folder) for folder in KB_TRACKED_FOLDERS}
 
     for candidate_path in candidate_paths:
         if any(os.path.dirname(candidate_path) == folder for folder in kb_folders):
@@ -450,7 +477,7 @@ def deleteAll():
         except Exception as e:
             results["errors"].append({"file": file_name, "error": str(e)})
 
-    for file_path in _kb_doc_paths():
+    for file_path in _kb_doc_paths(KB_TRACKED_FOLDERS):
         try:
             os.remove(file_path)
             results["deleted_local_files"].append(file_path)

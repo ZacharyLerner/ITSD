@@ -9,6 +9,53 @@ from PIL import Image, ImageOps
 from io import BytesIO
 load_dotenv()
 
+# Marks the start of the source list appended to answers; bot.py cuts replies
+# here when it rebuilds conversation history.
+SOURCES_HEADER = "\n\n**Sources**\n"
+MAX_SOURCE_LABEL_CHARS = 90
+
+
+def format_sources(sources, web_sources=()):
+    """Discord-formatted list of the passages the answer cited as [n].
+
+    The backend numbers document passages and web results in one sequence and
+    marks each with whether the answer `cited` it. Passages from the same page
+    and section are listed once ("[1, 3] Title › Section"); web results are
+    marked "(web)". Links are masked and wrapped in <> so Discord doesn't add a
+    preview card for each one. Returns "" when nothing was cited (or the
+    backend predates citations).
+    """
+    entries = [
+        (source, source.get("title") or source.get("filename") or "Untitled", source.get("uri") or "", "")
+        for source in sources
+    ] + [
+        (result, result.get("title") or result.get("url") or "Web result", result.get("url") or "", " (web)")
+        for result in web_sources
+    ]
+
+    grouped = {}
+    for source, title, uri, kind in entries:
+        if not source.get("cited"):
+            continue
+        section = " › ".join(h for h in source.get("headings") or [] if not title.startswith(h))
+        label = f"{title} › {section}" if section else title
+        if len(label) > MAX_SOURCE_LABEL_CHARS:
+            label = label[: MAX_SOURCE_LABEL_CHARS - 1].rstrip() + "…"
+        # Square brackets would end the masked link text early
+        label = label.replace("[", "(").replace("]", ")")
+        grouped.setdefault((label, uri, kind), []).append(source.get("n"))
+
+    lines = []
+    for (label, uri, kind), numbers in grouped.items():
+        refs = "[" + ", ".join(str(n) for n in numbers if n is not None) + "]"
+        if uri.startswith(("http://", "https://")):
+            lines.append(f"{refs} [{label}](<{uri}>){kind}")
+        else:
+            lines.append(f"{refs} {label}{kind}")
+
+    return SOURCES_HEADER + "\n".join(lines) if lines else ""
+
+
 def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
     # LLM RAG Backend API configuration
     base_url = os.getenv('LLM_BACKEND_URL', 'http://10.140.2.31:3001')
@@ -59,8 +106,10 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
         raw_sources = response_data.get('sources', [])
         if isinstance(raw_sources, dict):
             sources = raw_sources.get('documents', [])
+            web_sources = raw_sources.get('web', [])
         else:
             sources = raw_sources  # backwards compat if format ever reverts
+            web_sources = []
 
         source_text = ""
         for source in sources:
@@ -88,7 +137,8 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
         with open(filepath, "w") as f:
             json.dump(data, f, indent=2)
 
-        return response_data.get('answer', 'No response received.')
+        answer = response_data.get('answer', 'No response received.')
+        return answer + format_sources(sources, web_sources)
 
     except requests.exceptions.RequestException as e:
         return f"An error occurred while communicating with the LLM backend: {str(e)}"

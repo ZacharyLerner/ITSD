@@ -19,7 +19,7 @@ output_dir = os.getenv("output_dir")
 # Imported functions from Queue Manager and Scheduler to allow edits to queue and schedule
 from queueManager import react_queue, get_queue,add_to_queue, remove_from_queue, save_queues, load_queues, clear_user_queue, back_to_start
 from scheduler import daily_commands, purge_channel, get_incidents
-from ask_anythingLLM import ask_anythingllm
+from ask_anythingLLM import ask_anythingllm, SOURCES_HEADER
 from LLM_Upload_Manager import update_doc, full_upload
 
 # Discord Intents to allow the bot to access message reactions, content, and user info
@@ -384,6 +384,10 @@ async def on_message(message):
                 footer_start = bot_content.find("*This response was generated with AI Assistance.")
                 if footer_start != -1:
                     bot_content = bot_content[:footer_start]
+                # The source list is for the reader, not the model's history
+                sources_start = bot_content.find(SOURCES_HEADER)
+                if sources_start != -1:
+                    bot_content = bot_content[:sources_start]
                 context += "\n User: " + user_content.strip() + "\n Bot: " + bot_content.strip()
 
             context += "}\n User current response / question: " + message.content
