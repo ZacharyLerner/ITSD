@@ -138,10 +138,10 @@ def ask_anythingllm(question, ticket=None, image_urls=None, message_id=None):
             json.dump(data, f, indent=2)
 
         answer = response_data.get('answer', 'No response received.')
-        return answer + format_sources(sources, web_sources)
+        return answer, format_sources(sources, web_sources)
 
     except requests.exceptions.RequestException as e:
-        return f"An error occurred while communicating with the LLM backend: {str(e)}"
+        return f"An error occurred while communicating with the LLM backend: {str(e)}", ""
 
 # Send images to a smaller model to summarize the image and return a text description of the image to be used as context for the main LLM
 def summarize_images(image_attachments):
