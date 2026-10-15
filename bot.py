@@ -246,11 +246,12 @@ async def ask_question(ctx, *, question):
             inc_index = question.find("INC")
             ticket = question[inc_index:inc_index + 10].strip() 
             ticket = ticketInfo(ticket)
-            response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls=image_attachments, message_id=message.id)
+            response, sources = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls=image_attachments, message_id=message.id)
         else:
-            response = await asyncio.to_thread(ask_anythingllm, question, image_urls=image_attachments, message_id=message.id)
+            response, sources = await asyncio.to_thread(ask_anythingllm, question, image_urls=image_attachments, message_id=message.id)
     response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
     await ctx.reply(response)
+    await ctx.reply(sources)
 # Reloads the times for the bot to run the daily commands
 # Ex. !reload_times will reload the times for the bot to run the daily commands
 @bot.command(name = "reload_times")
@@ -407,12 +408,13 @@ async def on_message(message):
                         inc_index = context.find("INC")
                         ticket = context[inc_index:inc_index + 10].strip() 
                         ticket = ticketInfo(ticket)
-                        response = await asyncio.to_thread(ask_anythingllm, context, ticket=ticket, image_urls = image_attachments, message_id=message.id) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        response, sources = await asyncio.to_thread(ask_anythingllm, context, ticket=ticket, image_urls = image_attachments, message_id=message.id) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     else:
-                        response = await asyncio.to_thread(ask_anythingllm, context, image_urls = image_attachments, message_id=message.id) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
+                        response, sources = await asyncio.to_thread(ask_anythingllm, context, image_urls = image_attachments, message_id=message.id) + "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     if "This response was generated with AI Assistance." not in response:
                         response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                     await message.reply(response)
+                    await message.reply(sources)
                 except Exception as e:
                     await message.channel.send(f"Error: {e}")
             return
@@ -438,12 +440,13 @@ async def on_message(message):
                     inc_index = question.find("INC")
                     ticket = question[inc_index:inc_index + 10].strip() 
                     ticket = ticketInfo(ticket)
-                    response = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls = image_attachments, message_id=message.id)
+                    response, sources = await asyncio.to_thread(ask_anythingllm, question, ticket=ticket, image_urls = image_attachments, message_id=message.id)
                     response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                 else:
-                    response = await asyncio.to_thread(ask_anythingllm, question, image_urls = image_attachments, message_id=message.id)
+                    response, sources = await asyncio.to_thread(ask_anythingllm, question, image_urls = image_attachments, message_id=message.id)
                     response += "\n\n\n*This response was generated with AI Assistance. Please confirm all information with internal resources or with a TL or FTS. \nPlease react with 👍 or 👎 to rate this response!*"
                 await message.reply(response)
+                await message.reply(sources)
             except Exception as e:
                 await message.channel.send(f"Error: {e}")
         return
